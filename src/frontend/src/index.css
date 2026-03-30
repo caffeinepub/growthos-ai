@@ -1,0 +1,117 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.875rem;
+
+    /* Dark theme as default — GrowthOS AI premium dark */
+    --background: 0.115 0.008 250;
+    --foreground: 0.963 0.005 250;
+    --card: 0.175 0.011 250;
+    --card-foreground: 0.963 0.005 250;
+    --popover: 0.195 0.012 250;
+    --popover-foreground: 0.963 0.005 250;
+    --primary: 0.895 0.245 133;
+    --primary-foreground: 0.12 0.008 250;
+    --secondary: 0.27 0.013 250;
+    --secondary-foreground: 0.963 0.005 250;
+    --muted: 0.195 0.012 250;
+    --muted-foreground: 0.72 0.012 250;
+    --accent: 0.555 0.095 195;
+    --accent-foreground: 0.963 0.005 250;
+    --destructive: 0.638 0.22 25;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.27 0.013 250;
+    --input: 0.27 0.013 250;
+    --ring: 0.585 0.195 260;
+    --chart-1: 0.585 0.195 260;
+    --chart-2: 0.895 0.245 133;
+    --chart-3: 0.72 0.185 215;
+    --chart-4: 0.68 0.18 300;
+    --chart-5: 0.555 0.095 195;
+    --sidebar: 0.175 0.011 250;
+    --sidebar-foreground: 0.963 0.005 250;
+    --sidebar-primary: 0.585 0.195 260;
+    --sidebar-primary-foreground: 0.985 0 0;
+    --sidebar-accent: 0.195 0.012 250;
+    --sidebar-accent-foreground: 0.963 0.005 250;
+    --sidebar-border: 0.27 0.013 250;
+    --sidebar-ring: 0.585 0.195 260;
+
+    /* Brand tokens */
+    --brand-blue: 0.585 0.195 260;
+    --brand-cyan: 0.72 0.185 215;
+    --brand-green: 0.895 0.245 133;
+    --brand-teal: 0.555 0.095 195;
+    --surface: 0.195 0.012 250;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    overscroll-behavior: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(var(--border));
+    border-radius: 9999px;
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(
+      135deg,
+      oklch(var(--brand-blue)),
+      oklch(var(--brand-cyan))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-bg {
+    background: linear-gradient(
+      135deg,
+      oklch(var(--brand-blue)),
+      oklch(var(--brand-cyan))
+    );
+  }
+
+  .card-glow {
+    box-shadow: 0 0 0 1px oklch(var(--border)), 0 4px 24px -4px
+      oklch(var(--brand-blue) / 0.15);
+  }
+
+  .green-glow {
+    box-shadow: 0 0 20px -4px oklch(var(--brand-green) / 0.4);
+  }
+
+  .blue-glow {
+    box-shadow: 0 0 20px -4px oklch(var(--brand-blue) / 0.5);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
