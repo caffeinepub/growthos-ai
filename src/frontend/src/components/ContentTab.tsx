@@ -39,7 +39,12 @@ import {
   useScripts,
   useUpdateContentStatus,
 } from "../hooks/useQueries";
-import type { ConnectedAccounts, ScheduledPost } from "../types/growth";
+import type {
+  ConnectedAccounts,
+  Project,
+  ScheduledPost,
+} from "../types/growth";
+import { type UserPlan, canAccess } from "../utils/planGating";
 import { trendFormats } from "../utils/trendingHooks";
 import {
   computeViralityScore,
@@ -60,6 +65,8 @@ interface Props {
   onDeleteScheduledPost: (id: string) => void;
   onMarkScheduledPosted: (id: string) => void;
   onEditScheduledPost: (post: ScheduledPost) => void;
+  userPlan?: UserPlan;
+  onAddProject?: (project: Project) => void;
 }
 
 const typeColors: Record<ContentType, string> = {
@@ -103,7 +110,7 @@ function formatScheduledDateTime(date: string, time: string): string {
   return `${months[month - 1]} ${day}, ${year} · ${h}:${String(minutes).padStart(2, "0")} ${ampm}`;
 }
 
-// ─── Plan Sub-Tab ─────────────────────────────────────────────────
+// ─── Plan Sub-Tab ───────────────────────────────────────────────────
 
 function PlanSubTab() {
   const { data: plan, isLoading } = useContentPlan();
@@ -241,9 +248,7 @@ function PlanSubTab() {
             <div className="space-y-3 py-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge
-                  className={`text-[9px] border px-2 py-0.5 ${
-                    typeColors[selectedItem.contentType]
-                  }`}
+                  className={`text-[9px] border px-2 py-0.5 ${typeColors[selectedItem.contentType]}`}
                 >
                   {typeLabels[selectedItem.contentType]}
                 </Badge>
@@ -297,7 +302,7 @@ function PlanSubTab() {
   );
 }
 
-// ─── Hooks Sub-Tab ────────────────────────────────────────────────
+// ─── Hooks Sub-Tab ───────────────────────────────────────────────────
 
 function HooksSubTab({ profile }: { profile: UserProfile }) {
   const { data: hooks, isLoading } = useHooks();
@@ -378,13 +383,15 @@ function HooksSubTab({ profile }: { profile: UserProfile }) {
   );
 }
 
-// ─── Scripts Sub-Tab ──────────────────────────────────────────────
+// ─── Scripts Sub-Tab ───────────────────────────────────────────────────
 
 interface ScriptsSubTabProps {
   profile: UserProfile;
   connectedAccounts: ConnectedAccounts;
   onSwitchToVideo: (scriptId?: number) => void;
   onSchedulePost: (post: ScheduledPost) => void;
+  userPlan: UserPlan;
+  onAddProject?: (project: Project) => void;
 }
 
 function ScriptsSubTab({
@@ -392,6 +399,8 @@ function ScriptsSubTab({
   connectedAccounts,
   onSwitchToVideo,
   onSchedulePost,
+  userPlan,
+  onAddProject,
 }: ScriptsSubTabProps) {
   const { data: scripts, isLoading } = useScripts();
   const generateScript = useGenerateScript();
@@ -407,6 +416,11 @@ function ScriptsSubTab({
 
   const handleGenerate = () => {
     if (!topic.trim()) return;
+    if (!canAccess(userPlan, "script_generator")) {
+      toast.error("Upgrade to Basic to generate scripts 🔒");
+      setShowDialog(false);
+      return;
+    }
     generateScript.mutate(
       { topic: topic.trim(), niche: profile.niche },
       {
@@ -417,6 +431,33 @@ function ScriptsSubTab({
         },
       },
     );
+  };
+
+  const handleCreateGraphic = (script: Script) => {
+    if (!canAccess(userPlan, "graphic_generator")) {
+      toast.error("Upgrade to Basic to create graphics 🔒");
+      return;
+    }
+    setGraphicScript(script);
+  };
+
+  const handleCreateVideo = (scriptId: number) => {
+    if (!canAccess(userPlan, "video_generator")) {
+      toast.error("Upgrade to Basic to create video plans 🔒");
+      return;
+    }
+    onSwitchToVideo(scriptId);
+  };
+
+  const handleSchedulePost = (script: Script) => {
+    if (!canAccess(userPlan, "scheduling")) {
+      toast.error("Upgrade to Basic to schedule posts 🔒");
+      return;
+    }
+    setScheduleData({
+      title: script.title,
+      content: `${script.hook}\n\n${script.mainContent}\n\n${script.cta}`,
+    });
   };
 
   return (
@@ -432,6 +473,9 @@ function ScriptsSubTab({
         }}
       >
         <Plus className="w-4 h-4 mr-2" /> Generate Script
+        {!canAccess(userPlan, "script_generator") && (
+          <span className="ml-1 text-[10px]">🔒</span>
+        )}
       </Button>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -582,7 +626,6 @@ function ScriptsSubTab({
                           </p>
                         </div>
 
-                        {/* Copy full script */}
                         <button
                           type="button"
                           onClick={() => {
@@ -600,15 +643,16 @@ function ScriptsSubTab({
                         <div className="flex flex-wrap gap-2 pt-1">
                           <button
                             type="button"
-                            onClick={() => setGraphicScript(script)}
+                            onClick={() => handleCreateGraphic(script)}
                             data-ocid={`content.scripts.graphic.button.${i + 1}`}
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors font-medium"
                           >
                             🎨 Create Graphic
+                            {!canAccess(userPlan, "graphic_generator") && " 🔒"}
                           </button>
                           <button
                             type="button"
-                            onClick={() => onSwitchToVideo(script.id)}
+                            onClick={() => handleCreateVideo(script.id)}
                             data-ocid={`content.scripts.video.button.${i + 1}`}
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium"
                             style={{
@@ -618,6 +662,7 @@ function ScriptsSubTab({
                             }}
                           >
                             🎬 Create Video
+                            {!canAccess(userPlan, "video_generator") && " 🔒"}
                           </button>
                           <button
                             type="button"
@@ -634,12 +679,7 @@ function ScriptsSubTab({
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              setScheduleData({
-                                title: script.title,
-                                content: `${script.hook}\n\n${script.mainContent}\n\n${script.cta}`,
-                              })
-                            }
+                            onClick={() => handleSchedulePost(script)}
                             data-ocid={`content.scripts.schedule.button.${i + 1}`}
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium"
                             style={{
@@ -649,6 +689,7 @@ function ScriptsSubTab({
                             }}
                           >
                             📅 Schedule Post
+                            {!canAccess(userPlan, "scheduling") && " 🔒"}
                           </button>
                         </div>
                       </div>
@@ -661,17 +702,17 @@ function ScriptsSubTab({
         </div>
       )}
 
-      {/* Graphic Generator Dialog */}
       {graphicScript && (
         <GraphicGeneratorDialog
           open={!!graphicScript}
           onClose={() => setGraphicScript(null)}
           title={graphicScript.title}
           hook={graphicScript.hook}
+          userPlan={userPlan}
+          onAddProject={onAddProject}
         />
       )}
 
-      {/* Post to Social Modal */}
       {postScript && (
         <PostToSocialModal
           open={!!postScript}
@@ -682,7 +723,6 @@ function ScriptsSubTab({
         />
       )}
 
-      {/* Schedule Post Modal */}
       <SchedulePostModal
         open={!!scheduleData}
         onClose={() => setScheduleData(null)}
@@ -697,7 +737,7 @@ function ScriptsSubTab({
   );
 }
 
-// ─── Trend Hooks Sub-Tab ──────────────────────────────────────────
+// ─── Trend Hooks Sub-Tab ──────────────────────────────────────────────────
 
 function TrendHooksSubTab({ profile }: { profile: UserProfile }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -795,7 +835,7 @@ function TrendHooksSubTab({ profile }: { profile: UserProfile }) {
   );
 }
 
-// ─── Scheduled Posts Sub-Tab ──────────────────────────────────────
+// ─── Scheduled Posts Sub-Tab ──────────────────────────────────────────────────
 
 interface ScheduledPostsSubTabProps {
   posts: ScheduledPost[];
@@ -811,7 +851,6 @@ function ScheduledPostsSubTab({
   onEdit,
 }: ScheduledPostsSubTabProps) {
   const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
-
   const scheduledCount = posts.filter((p) => p.status === "Scheduled").length;
   const postedCount = posts.filter((p) => p.status === "Posted").length;
 
@@ -868,7 +907,6 @@ function ScheduledPostsSubTab({
         </div>
       </div>
 
-      {/* Post list */}
       <div className="space-y-2" data-ocid="scheduled.list">
         {posts.map((post, i) => (
           <motion.div
@@ -892,7 +930,6 @@ function ScheduledPostsSubTab({
                 </p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                {/* Platform badge */}
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                   style={
@@ -909,7 +946,6 @@ function ScheduledPostsSubTab({
                 >
                   {post.platform === "Instagram" ? "📸" : "▶️"} {post.platform}
                 </span>
-                {/* Status badge */}
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                   style={
@@ -929,7 +965,6 @@ function ScheduledPostsSubTab({
               </div>
             </div>
 
-            {/* Action buttons */}
             <div className="flex items-center gap-1.5">
               {post.status === "Scheduled" && (
                 <button
@@ -973,7 +1008,6 @@ function ScheduledPostsSubTab({
         ))}
       </div>
 
-      {/* Edit modal */}
       {editingPost && (
         <SchedulePostModal
           open={!!editingPost}
@@ -991,7 +1025,7 @@ function ScheduledPostsSubTab({
   );
 }
 
-// ─── Content Tab ──────────────────────────────────────────────────
+// ─── Content Tab ─────────────────────────────────────────────────────────
 
 export default function ContentTab({
   profile,
@@ -1002,6 +1036,8 @@ export default function ContentTab({
   onDeleteScheduledPost,
   onMarkScheduledPosted,
   onEditScheduledPost,
+  userPlan = "free",
+  onAddProject,
 }: Props) {
   const [subTab, setSubTab] = useState(initialSubTab);
   const [videoInitialScriptId, setVideoInitialScriptId] = useState<
@@ -1066,6 +1102,8 @@ export default function ContentTab({
               connectedAccounts={connectedAccounts}
               onSwitchToVideo={handleSwitchToVideo}
               onSchedulePost={onAddScheduledPost}
+              userPlan={userPlan}
+              onAddProject={onAddProject}
             />
           )}
           {subTab === "trends" && <TrendHooksSubTab profile={profile} />}
@@ -1073,6 +1111,8 @@ export default function ContentTab({
             <VideoGeneratorTab
               scripts={scripts}
               initialScriptId={videoInitialScriptId}
+              userPlan={userPlan}
+              onAddProject={onAddProject}
             />
           )}
           {subTab === "scheduled" && (

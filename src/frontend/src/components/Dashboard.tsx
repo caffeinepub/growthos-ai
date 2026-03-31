@@ -10,6 +10,7 @@ import {
   Loader2,
   Send,
   Settings,
+  TrendingUp,
   UserCircle,
   Users,
   Zap,
@@ -25,12 +26,14 @@ import {
   useScripts,
   useStats,
 } from "../hooks/useQueries";
+import type { UserPlan } from "../utils/planGating";
 import { computeViralityScore, getScoreColor } from "../utils/viralityScore";
 
 interface Props {
   profile: UserProfile;
   onNavigate: (tab: string, subTab?: string) => void;
   pendingApplicationsCount?: number;
+  userPlan?: UserPlan;
 }
 
 const typeColors: Record<ContentType, string> = {
@@ -56,6 +59,7 @@ export default function Dashboard({
   profile,
   onNavigate,
   pendingApplicationsCount = 0,
+  userPlan = "free",
 }: Props) {
   const { data: plan, isLoading: planLoading } = useContentPlan();
   const { data: hooks, isLoading: hooksLoading } = useHooks();
@@ -68,7 +72,6 @@ export default function Dashboard({
   const recentHooks = hooks?.slice(0, 3) ?? [];
   const recentScripts = scripts?.slice(0, 2) ?? [];
 
-  // Creator profile computed values
   const topContent = useMemo(() => {
     if (!plan || plan.length === 0) return "Mixed";
     const counts: Record<string, number> = {};
@@ -122,22 +125,26 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Upgrade Banner */}
-      <button
-        type="button"
-        onClick={() => onNavigate("pricing")}
-        data-ocid="dashboard.pricing.button"
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-brand-blue/10 border border-brand-blue/20 mb-5 hover:bg-brand-blue/15 transition-colors"
-      >
-        <span className="text-xs text-brand-cyan font-medium">
-          ✨ Unlock Trends + Virality Score
-        </span>
-        <div className="flex items-center gap-1 text-xs text-brand-blue font-semibold flex-shrink-0">
-          View Plans <ChevronRight className="w-3.5 h-3.5" />
-        </div>
-      </button>
+      {/* Upgrade Banner — dynamic based on plan */}
+      {userPlan !== "pro" && (
+        <button
+          type="button"
+          onClick={() => onNavigate("pricing")}
+          data-ocid="dashboard.pricing.button"
+          className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-brand-blue/10 border border-brand-blue/20 mb-5 hover:bg-brand-blue/15 transition-colors"
+        >
+          <span className="text-xs text-brand-cyan font-medium">
+            {userPlan === "free"
+              ? "✨ Unlock Scripts, Video & Graphic Generator"
+              : "⭐ Upgrade to Pro for Brand Campaigns & Automation"}
+          </span>
+          <div className="flex items-center gap-1 text-xs text-brand-blue font-semibold flex-shrink-0">
+            View Plans <ChevronRight className="w-3.5 h-3.5" />
+          </div>
+        </button>
+      )}
 
-      {/* Stats row — 2x2 grid */}
+      {/* Stats row */}
       <div className="grid grid-cols-2 gap-2.5 mb-5">
         {[
           {
@@ -256,9 +263,7 @@ export default function Dashboard({
             type="button"
             data-ocid="dashboard.primary_button"
             onClick={() => {
-              if (profile.niche) {
-                generateHooks.mutate(profile.niche);
-              }
+              if (profile.niche) generateHooks.mutate(profile.niche);
             }}
             disabled={generateHooks.isPending}
             variant="outline"
@@ -302,7 +307,31 @@ export default function Dashboard({
             Log Stats
           </Button>
 
-          {/* Applications shortcut — full width */}
+          {/* Trends */}
+          <Button
+            type="button"
+            data-ocid="dashboard.trends_button"
+            onClick={() => onNavigate("trends")}
+            variant="outline"
+            className="h-11 rounded-xl border-border bg-card hover:bg-surface text-sm font-medium gap-2"
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-brand-cyan" />
+            Trends
+          </Button>
+
+          {/* Brand Campaigns */}
+          <Button
+            type="button"
+            data-ocid="dashboard.brandcampaigns_button"
+            onClick={() => onNavigate("brandcampaigns")}
+            variant="outline"
+            className="h-11 rounded-xl border-border bg-card hover:bg-surface text-sm font-medium gap-2"
+          >
+            <span className="text-sm">📊</span>
+            Campaigns
+          </Button>
+
+          {/* Applications shortcut */}
           <Button
             type="button"
             data-ocid="dashboard.applications_button"
@@ -322,7 +351,7 @@ export default function Dashboard({
             )}
           </Button>
 
-          {/* Brand Outreach shortcut — full width */}
+          {/* Brand Outreach shortcut */}
           <Button
             type="button"
             data-ocid="dashboard.outreach_button"

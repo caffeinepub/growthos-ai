@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  ArrowLeft,
   Crown,
   DollarSign,
   Instagram,
@@ -57,7 +58,20 @@ export default function SettingsTab({ profile, onNavigate }: Props) {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-xl font-bold mb-5">Settings</h1>
+      {/* Header with back button */}
+      <div className="flex items-center gap-3 mb-5">
+        {onNavigate && (
+          <button
+            type="button"
+            onClick={() => onNavigate("profile")}
+            data-ocid="settings.back.button"
+            className="w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-surface transition-colors flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
+        <h1 className="text-xl font-bold">Settings</h1>
+      </div>
 
       {/* Profile card */}
       <motion.div

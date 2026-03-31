@@ -10,10 +10,14 @@ import {
   BarChart2,
   Bot,
   ChevronRight,
+  Crown,
+  FolderOpen,
   Handshake,
   Instagram,
   Loader2,
+  Send,
   Settings,
+  TrendingUp,
   UserCircle,
   Youtube,
 } from "lucide-react";
@@ -22,12 +26,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { UserProfile } from "../backend";
 import type { ConnectedAccounts } from "../types/growth";
+import { PLAN_LABELS, type UserPlan } from "../utils/planGating";
 
 interface Props {
   profile: UserProfile;
   onNavigate: (tab: string) => void;
   connectedAccounts: ConnectedAccounts;
   onUpdateConnectedAccounts: (update: Partial<ConnectedAccounts>) => void;
+  userPlan: UserPlan;
 }
 
 type PlatformKey = "instagram" | "youtube";
@@ -43,11 +49,21 @@ const goalLabel: Record<string, string> = {
   sales: "Sales & Revenue",
 };
 
+const planBadgeStyle: Record<UserPlan, { bg: string; color: string }> = {
+  free: { bg: "oklch(0.68 0.22 80 / 0.15)", color: "oklch(0.82 0.18 80)" },
+  basic: {
+    bg: "oklch(0.585 0.195 260 / 0.15)",
+    color: "oklch(0.72 0.185 215)",
+  },
+  pro: { bg: "oklch(0.78 0.18 80 / 0.20)", color: "oklch(0.78 0.18 80)" },
+};
+
 export default function ProfileTab({
   profile,
   onNavigate,
   connectedAccounts,
   onUpdateConnectedAccounts,
+  userPlan,
 }: Props) {
   const year = new Date().getFullYear();
   const hostname =
@@ -114,6 +130,8 @@ export default function ProfileTab({
     },
   ];
 
+  const badgeStyle = planBadgeStyle[userPlan];
+
   return (
     <div className="animate-fade-in pb-4" data-ocid="profile.section">
       {/* Header */}
@@ -154,7 +172,7 @@ export default function ProfileTab({
           >
             <UserCircle className="w-7 h-7 text-brand-cyan" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-bold text-base text-foreground">
               {profile.niche || "Creator"}
             </p>
@@ -162,6 +180,14 @@ export default function ProfileTab({
               {platformLabel[profile.platform] ?? profile.platform}
             </p>
           </div>
+          {/* Plan Badge */}
+          <span
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 flex-shrink-0"
+            style={{ background: badgeStyle.bg, color: badgeStyle.color }}
+          >
+            {userPlan === "pro" && <Crown className="w-3 h-3" />}
+            {PLAN_LABELS[userPlan]} Plan
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -223,7 +249,6 @@ export default function ProfileTab({
                   </div>
                   <span className="text-xs font-semibold">{label}</span>
                 </div>
-
                 {isConnected ? (
                   <div className="space-y-2">
                     <div>
@@ -270,7 +295,65 @@ export default function ProfileTab({
       </p>
 
       <div className="space-y-2.5 mb-4">
-        {/* Analytics Card */}
+        {/* My Projects */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.05 }}
+          onClick={() => onNavigate("myprojects")}
+          className="w-full bg-card rounded-xl p-4 card-glow flex items-center gap-3 hover:bg-surface transition-colors text-left"
+          data-ocid="profile.myprojects.link"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              background: "oklch(0.895 0.245 133 / 0.15)",
+              border: "1px solid oklch(0.895 0.245 133 / 0.25)",
+            }}
+          >
+            <FolderOpen className="w-5 h-5 text-brand-green" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              My Projects 📁
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Saved graphics &amp; video plans
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+
+        {/* Trends */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.08 }}
+          onClick={() => onNavigate("trends")}
+          className="w-full bg-card rounded-xl p-4 card-glow flex items-center gap-3 hover:bg-surface transition-colors text-left"
+          data-ocid="profile.trends.link"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              background: "oklch(0.72 0.185 215 / 0.15)",
+              border: "1px solid oklch(0.72 0.185 215 / 0.25)",
+            }}
+          >
+            <TrendingUp className="w-5 h-5 text-brand-cyan" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Trends 📈</p>
+            <p className="text-xs text-muted-foreground">
+              Niche-specific viral hooks &amp; ideas
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+
+        {/* Analytics */}
         <motion.button
           type="button"
           initial={{ opacity: 0, x: -8 }}
@@ -298,7 +381,7 @@ export default function ProfileTab({
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </motion.button>
 
-        {/* Automation Card */}
+        {/* Automation */}
         <motion.button
           type="button"
           initial={{ opacity: 0, x: -8 }}
@@ -355,12 +438,122 @@ export default function ProfileTab({
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </motion.button>
+
+        {/* Brand Campaigns */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.22 }}
+          onClick={() => onNavigate("brandcampaigns")}
+          className="w-full bg-card rounded-xl p-4 card-glow flex items-center gap-3 hover:bg-surface transition-colors text-left"
+          data-ocid="profile.brandcampaigns.link"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg"
+            style={{
+              background: "oklch(0.78 0.18 80 / 0.15)",
+              border: "1px solid oklch(0.78 0.18 80 / 0.25)",
+            }}
+          >
+            📊
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">
+                Brand Campaigns
+              </p>
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: "oklch(0.78 0.18 80 / 0.2)",
+                  color: "oklch(0.78 0.18 80)",
+                }}
+              >
+                Pro
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Apply to real brand deals
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+
+        {/* Brand Outreach */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.25 }}
+          onClick={() => onNavigate("outreach")}
+          className="w-full bg-card rounded-xl p-4 card-glow flex items-center gap-3 hover:bg-surface transition-colors text-left"
+          data-ocid="profile.outreach.link"
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              background: "oklch(0.68 0.18 300 / 0.15)",
+              border: "1px solid oklch(0.68 0.18 300 / 0.25)",
+            }}
+          >
+            <Send
+              className="w-5 h-5"
+              style={{ color: "oklch(0.68 0.18 300)" }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              Brand Outreach
+            </p>
+            <p className="text-xs text-muted-foreground">
+              AI-powered DM campaigns
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+
+        {/* Upgrade Plan (if not Pro) */}
+        {userPlan !== "pro" && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.28 }}
+            onClick={() => onNavigate("pricing")}
+            className="w-full rounded-xl p-4 flex items-center gap-3 hover:opacity-90 transition-opacity text-left"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.585 0.195 260 / 0.2), oklch(0.72 0.185 215 / 0.15))",
+              border: "1px solid oklch(0.585 0.195 260 / 0.35)",
+            }}
+            data-ocid="profile.upgrade.link"
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "oklch(0.585 0.195 260 / 0.2)" }}
+            >
+              <Crown className="w-5 h-5 text-brand-blue" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold gradient-text">
+                {userPlan === "free" ? "Upgrade Plan ⚡" : "Upgrade to Pro ⭐"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {userPlan === "free"
+                  ? "Unlock scripts, videos & more"
+                  : "Unlock Brand Campaigns & Automation"}
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-brand-blue shrink-0" />
+          </motion.button>
+        )}
       </div>
 
       {/* Version + Footer */}
       <div className="mt-8 text-center">
         <p className="text-[11px] text-muted-foreground">
-          GrowthOS AI v6 · India's Creator OS
+          GrowthOS AI v10 · India's Creator OS
         </p>
         <p className="text-[10px] text-muted-foreground/60 mt-1.5">
           © {year}.{" "}
@@ -430,7 +623,7 @@ export default function ProfileTab({
             >
               {isConnecting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
                   Connecting...
                 </>
               ) : (

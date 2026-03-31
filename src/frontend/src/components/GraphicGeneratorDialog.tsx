@@ -5,16 +5,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Download, Loader2, RefreshCw, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Project } from "../types/growth";
+import { downloadAsText } from "../utils/downloadUtils";
+import { type UserPlan, canAccess } from "../utils/planGating";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   title: string;
   hook: string;
+  userPlan?: UserPlan;
+  onAddProject?: (project: Project) => void;
 }
 
 type GraphicStyle = "Post" | "Story" | "Thumbnail";
@@ -25,7 +30,7 @@ interface GraphicOutput {
   designStyle: string;
 }
 
-// ─── Generation helpers ──────────────────────────────────────────
+// ─── Generation helpers ──────────────────────────────────────────────
 
 function simpleHash(str: string): number {
   let hash = 0;
@@ -144,18 +149,13 @@ function generateGraphicOutput(
   const hash = simpleHash(combined);
   const category = detectCategory(combined);
   const dim = dimensionsByStyle[style];
-
   const prompts = promptVariants[category];
   const captions = captionVariants[category];
-
   const imagePrompt = prompts[hash % 3](dim, title);
   const caption = captions[(hash + 1) % 3].replace(/{title}/g, title);
   const designStyle = designStyles[(hash + 2) % 3];
-
   return { imagePrompt, caption, designStyle };
 }
-
-// ─── Style selector config ───────────────────────────────────────
 
 const styleConfig: Record<
   GraphicStyle,
@@ -166,13 +166,15 @@ const styleConfig: Record<
   Thumbnail: { label: "Thumbnail", emoji: "🖼️", desc: "16:9 Wide" },
 };
 
-// ─── Component ───────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────────
 
 export default function GraphicGeneratorDialog({
   open,
   onClose,
   title,
   hook,
+  userPlan = "free",
+  onAddProject,
 }: Props) {
   const [selectedStyle, setSelectedStyle] = useState<GraphicStyle>("Post");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -190,10 +192,7 @@ export default function GraphicGeneratorDialog({
   };
 
   const handleGenerate = () => runGenerate(selectedStyle);
-
-  const handleRegenerate = () => {
-    runGenerate(selectedStyle);
-  };
+  const handleRegenerate = () => runGenerate(selectedStyle);
 
   const handleClose = () => {
     setOutput(null);
@@ -212,6 +211,40 @@ export default function GraphicGeneratorDialog({
     if (!output) return;
     navigator.clipboard.writeText(output.caption);
     toast.success("Caption copied 📋");
+  };
+
+  const handleDownload = () => {
+    if (!output) return;
+    if (!canAccess(userPlan, "download")) {
+      toast.error("Upgrade to Basic to download content 🔒");
+      return;
+    }
+    const content = `TITLE: ${title}\n\nIMAGE PROMPT:\n${output.imagePrompt}\n\nCAPTION:\n${output.caption}\n\nDESIGN STYLE: ${output.designStyle}\nSTYLE: ${selectedStyle}`;
+    const safe = title
+      .slice(0, 25)
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9-]/g, "");
+    downloadAsText(content, `graphic-${safe}.txt`);
+    toast.success("Downloaded ✅");
+  };
+
+  const handleSaveProject = () => {
+    if (!output) return;
+    if (!canAccess(userPlan, "projects")) {
+      toast.error("Upgrade to Basic to save projects 🔒");
+      return;
+    }
+    if (!onAddProject) return;
+    const content = `IMAGE PROMPT:\n${output.imagePrompt}\n\nCAPTION:\n${output.caption}\n\nDESIGN STYLE: ${output.designStyle}\nSTYLE: ${selectedStyle}`;
+    const project: Project = {
+      id: `graphic-${Date.now()}`,
+      title: `Graphic: ${title.slice(0, 40)}`,
+      type: "graphic",
+      data: content,
+      createdAt: new Date().toISOString(),
+    };
+    onAddProject(project);
+    toast.success("Saved to Projects ✅");
   };
 
   return (
@@ -253,9 +286,7 @@ export default function GraphicGeneratorDialog({
                   >
                     <span className="text-xl">{cfg.emoji}</span>
                     <span
-                      className={`text-xs font-semibold ${
-                        isActive ? "text-brand-blue" : "text-foreground"
-                      }`}
+                      className={`text-xs font-semibold ${isActive ? "text-brand-blue" : "text-foreground"}`}
                     >
                       {cfg.label}
                     </span>
@@ -268,7 +299,7 @@ export default function GraphicGeneratorDialog({
             </div>
           </div>
 
-          {/* Generate Button — shown when no output */}
+          {/* Generate Button */}
           {!output && (
             <Button
               type="button"
@@ -326,7 +357,7 @@ export default function GraphicGeneratorDialog({
                 </p>
               </div>
 
-              {/* Image Prompt — most important */}
+              {/* Image Prompt */}
               <div
                 className="rounded-xl p-3.5 border-2"
                 style={{
@@ -376,7 +407,7 @@ export default function GraphicGeneratorDialog({
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Copy Buttons */}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
@@ -396,6 +427,34 @@ export default function GraphicGeneratorDialog({
                 >
                   Copy Caption 📋
                 </Button>
+              </div>
+
+              {/* Download + Save + Regenerate */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDownload}
+                  className="h-10 text-xs gap-1.5 border-border hover:bg-surface"
+                  data-ocid="graphic.download_button"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {canAccess(userPlan, "download")
+                    ? "Download ⬇️"
+                    : "Download 🔒"}
+                </Button>
+                {onAddProject && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSaveProject}
+                    className="h-10 text-xs gap-1.5 border-border hover:bg-surface"
+                    data-ocid="graphic.save_button"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    {canAccess(userPlan, "projects") ? "Save 💾" : "Save 🔒"}
+                  </Button>
+                )}
               </div>
               <Button
                 type="button"

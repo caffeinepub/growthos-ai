@@ -7,15 +7,18 @@ import AnalyticsTab from "./components/AnalyticsTab";
 import ApplicationsTab from "./components/ApplicationsTab";
 import AutomationTab from "./components/AutomationTab";
 import BottomNav from "./components/BottomNav";
+import BrandCampaignsTab from "./components/BrandCampaignsTab";
 import BrandsTab from "./components/BrandsTab";
 import ContentTab from "./components/ContentTab";
 import Dashboard from "./components/Dashboard";
 import LeadsTab from "./components/LeadsTab";
+import MyProjectsTab from "./components/MyProjectsTab";
 import Onboarding from "./components/Onboarding";
 import OutreachTab from "./components/OutreachTab";
 import PricingTab from "./components/PricingTab";
 import ProfileTab from "./components/ProfileTab";
 import SettingsTab from "./components/SettingsTab";
+import TrendsTab from "./components/TrendsTab";
 import { useActor } from "./hooks/useActor";
 import { useGetProfile } from "./hooks/useQueries";
 import type {
@@ -24,8 +27,10 @@ import type {
   ConnectedAccounts,
   OutreachEntry,
   OutreachStatus,
+  Project,
   ScheduledPost,
 } from "./types/growth";
+import type { UserPlan } from "./utils/planGating";
 
 const defaultProfile = {
   niche: "Creator",
@@ -69,6 +74,30 @@ export default function App() {
   );
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [outreachEntries, setOutreachEntries] = useState<OutreachEntry[]>([]);
+
+  // Plan state — persisted to localStorage
+  const [userPlan, setUserPlan] = useState<UserPlan>(
+    () => (localStorage.getItem("growthosUserPlan") as UserPlan) || "free",
+  );
+
+  // Projects state — persisted to localStorage
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("growthosProjects") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist plan to localStorage
+  useEffect(() => {
+    localStorage.setItem("growthosUserPlan", userPlan);
+  }, [userPlan]);
+
+  // Persist projects to localStorage
+  useEffect(() => {
+    localStorage.setItem("growthosProjects", JSON.stringify(projects));
+  }, [projects]);
 
   useEffect(() => {
     if (onboardingComplete) {
@@ -146,6 +175,18 @@ export default function App() {
     setOutreachEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const handleAddProject = (project: Project) => {
+    setProjects((prev) => [...prev, project]);
+  };
+
+  const handleDeleteProject = (id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleUpgradePlan = (plan: UserPlan) => {
+    setUserPlan(plan);
+  };
+
   const pendingApplicationsCount = applications.filter(
     (a) => a.status === "Applied" || a.status === "Replied",
   ).length;
@@ -201,7 +242,7 @@ export default function App() {
 
   const resolvedProfile = profile ?? defaultProfile;
 
-  // Pricing and settings are overlay tabs — hide the bottom nav for them
+  // Overlay tabs have no bottom nav
   const isOverlayTab = activeTab === "pricing" || activeTab === "settings";
 
   return (
@@ -230,6 +271,7 @@ export default function App() {
                 profile={resolvedProfile}
                 onNavigate={handleNavigate}
                 pendingApplicationsCount={pendingApplicationsCount}
+                userPlan={userPlan}
               />
             )}
             {activeTab === "content" && (
@@ -242,6 +284,8 @@ export default function App() {
                 onDeleteScheduledPost={handleDeleteScheduledPost}
                 onMarkScheduledPosted={handleMarkScheduledPosted}
                 onEditScheduledPost={handleEditScheduledPost}
+                userPlan={userPlan}
+                onAddProject={handleAddProject}
               />
             )}
             {activeTab === "leads" && <LeadsTab />}
@@ -277,6 +321,7 @@ export default function App() {
                 onNavigate={handleNavigate}
                 connectedAccounts={connectedAccounts}
                 onUpdateConnectedAccounts={handleUpdateConnectedAccounts}
+                userPlan={userPlan}
               />
             )}
             {activeTab === "settings" && (
@@ -286,7 +331,33 @@ export default function App() {
               />
             )}
             {activeTab === "pricing" && (
-              <PricingTab onNavigate={handleNavigate} />
+              <PricingTab
+                onNavigate={handleNavigate}
+                currentPlan={userPlan}
+                onUpgradePlan={handleUpgradePlan}
+              />
+            )}
+            {activeTab === "myprojects" && (
+              <MyProjectsTab
+                projects={projects}
+                onDeleteProject={handleDeleteProject}
+                onNavigate={handleNavigate}
+                userPlan={userPlan}
+              />
+            )}
+            {activeTab === "brandcampaigns" && (
+              <BrandCampaignsTab
+                onNavigate={handleNavigate}
+                onAddApplication={handleAddApplication}
+                userPlan={userPlan}
+              />
+            )}
+            {activeTab === "trends" && (
+              <TrendsTab
+                profile={resolvedProfile}
+                onNavigate={handleNavigate}
+                userPlan={userPlan}
+              />
             )}
           </motion.div>
         </AnimatePresence>

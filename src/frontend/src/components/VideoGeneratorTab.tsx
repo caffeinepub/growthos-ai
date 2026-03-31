@@ -7,11 +7,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Download, Loader2 } from "lucide-react";
+import { Copy, Download, Loader2, Save } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Script } from "../backend";
+import type { Project } from "../types/growth";
+import { downloadAsText } from "../utils/downloadUtils";
+import { type UserPlan, canAccess } from "../utils/planGating";
 
 type VideoMode = "script" | "prompt";
 
@@ -32,9 +35,11 @@ type VideoResult = {
 interface Props {
   scripts: Script[] | undefined;
   initialScriptId?: number;
+  userPlan?: UserPlan;
+  onAddProject?: (project: Project) => void;
 }
 
-// ─── Deterministic generation helpers ───────────────────────────
+// ─── Generation helpers ───────────────────────────────────────────────
 
 function simpleHash(str: string): number {
   let hash = 0;
@@ -295,7 +300,7 @@ function generateFromScript(script: Script): VideoResult {
   return { hook, scriptText, scenes };
 }
 
-// ─── Sub-components ──────────────────────────────────────────────
+// ─── Sub-components ────────────────────────────────────────────────────
 
 function SceneCard({ scene, index }: { scene: Scene; index: number }) {
   const colorIdx = index % sceneBorderColors.length;
@@ -352,9 +357,17 @@ function SceneCard({ scene, index }: { scene: Scene; index: number }) {
 function VideoResultView({
   result,
   onCopyScript,
+  onDownload,
+  onSaveProject,
+  userPlan,
+  hasProjectSave,
 }: {
   result: VideoResult;
   onCopyScript: () => void;
+  onDownload: () => void;
+  onSaveProject: () => void;
+  userPlan: UserPlan;
+  hasProjectSave: boolean;
 }) {
   const handleUseContent = () => {
     navigator.clipboard.writeText(result.scriptText);
@@ -412,7 +425,7 @@ function VideoResultView({
           className="flex-1 h-10 text-xs gap-1.5 border-border hover:bg-surface"
           data-ocid="video.secondary_button"
         >
-          <Copy className="w-3.5 h-3.5" /> Copy Script 📋
+          <Copy className="w-3.5 h-3.5" /> Copy Script
         </Button>
         <Button
           type="button"
@@ -424,22 +437,42 @@ function VideoResultView({
           Use Content ✨
         </Button>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => toast.success("Demo downloaded ✅")}
-        className="w-full h-10 text-xs gap-1.5 border-border hover:bg-surface"
-        data-ocid="video.primary_button"
-      >
-        <Download className="w-3.5 h-3.5" /> Download Demo ⬇️
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDownload}
+          className="flex-1 h-10 text-xs gap-1.5 border-border hover:bg-surface"
+          data-ocid="video.primary_button"
+        >
+          <Download className="w-3.5 h-3.5" />
+          {canAccess(userPlan, "download") ? "Download ⬇️" : "Download 🔒"}
+        </Button>
+        {hasProjectSave && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onSaveProject}
+            className="flex-1 h-10 text-xs gap-1.5 border-border hover:bg-surface"
+            data-ocid="video.save_button"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {canAccess(userPlan, "projects") ? "Save 💾" : "Save 🔒"}
+          </Button>
+        )}
+      </div>
     </motion.div>
   );
 }
 
-// ─── Main Component ──────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────
 
-export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
+export default function VideoGeneratorTab({
+  scripts,
+  initialScriptId,
+  userPlan = "free",
+  onAddProject,
+}: Props) {
   const [mode, setMode] = useState<VideoMode>("script");
   const [selectedScriptId, setSelectedScriptId] = useState<string>(
     initialScriptId ? String(initialScriptId) : "",
@@ -447,6 +480,7 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<VideoResult | null>(null);
+  const [resultSource, setResultSource] = useState("");
 
   useEffect(() => {
     if (initialScriptId !== undefined) {
@@ -466,6 +500,9 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
 
     setIsGenerating(true);
     setResult(null);
+    const src =
+      mode === "script" ? selectedScript?.title || "script" : prompt.trim();
+    setResultSource(src);
     setTimeout(() => {
       const generated =
         mode === "script" && selectedScript
@@ -481,6 +518,52 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
     if (!result) return;
     navigator.clipboard.writeText(result.scriptText);
     toast.success("Copied ✅");
+  };
+
+  const handleDownload = () => {
+    if (!result) return;
+    if (!canAccess(userPlan, "download")) {
+      toast.error("Upgrade to Basic to download content 🔒");
+      return;
+    }
+    const sceneText = result.scenes
+      .map(
+        (s) =>
+          `Scene ${s.number}: ${s.title}\n  Description: ${s.description}\n  Text Overlay: "${s.textOverlay}"\n  Visual: ${s.visual}`,
+      )
+      .join("\n\n");
+    const content = `HOOK:\n${result.hook}\n\nFULL SCRIPT:\n${result.scriptText}\n\nSCENE BREAKDOWN:\n\n${sceneText}`;
+    const safe = resultSource
+      .slice(0, 25)
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9-]/g, "");
+    downloadAsText(content, `video-plan-${safe}.txt`);
+    toast.success("Downloaded ✅");
+  };
+
+  const handleSaveProject = () => {
+    if (!result) return;
+    if (!canAccess(userPlan, "projects")) {
+      toast.error("Upgrade to Basic to save projects 🔒");
+      return;
+    }
+    if (!onAddProject) return;
+    const sceneText = result.scenes
+      .map(
+        (s) =>
+          `Scene ${s.number}: ${s.title}\n  ${s.description}\n  Text: "${s.textOverlay}"\n  Visual: ${s.visual}`,
+      )
+      .join("\n\n");
+    const content = `HOOK:\n${result.hook}\n\nFULL SCRIPT:\n${result.scriptText}\n\nSCENE BREAKDOWN:\n\n${sceneText}`;
+    const project: Project = {
+      id: `video-${Date.now()}`,
+      title: `Video: ${resultSource.slice(0, 40)}`,
+      type: "video",
+      data: content,
+      createdAt: new Date().toISOString(),
+    };
+    onAddProject(project);
+    toast.success("Saved to Projects ✅");
   };
 
   const exampleChips = [
@@ -530,7 +613,6 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
           className="space-y-4"
         >
           {mode === "script" ? (
-            /* From Script Mode */
             <div className="space-y-3">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -612,7 +694,6 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
               </Button>
             </div>
           ) : (
-            /* From Prompt Mode */
             <div className="space-y-3">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -628,7 +709,6 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
                 />
               </div>
 
-              {/* Example Chips */}
               <div className="flex flex-wrap gap-1.5">
                 {exampleChips.map((chip) => (
                   <button
@@ -691,7 +771,14 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
 
       {/* Result */}
       {result && !isGenerating && (
-        <VideoResultView result={result} onCopyScript={handleCopyScript} />
+        <VideoResultView
+          result={result}
+          onCopyScript={handleCopyScript}
+          onDownload={handleDownload}
+          onSaveProject={handleSaveProject}
+          userPlan={userPlan}
+          hasProjectSave={!!onAddProject}
+        />
       )}
     </div>
   );

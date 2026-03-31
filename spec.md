@@ -1,50 +1,102 @@
-# GrowthOS AI
+# GrowthOS AI — V10 Complete SaaS Upgrade
 
 ## Current State
 
-GrowthOS AI is a mobile-first AI assistant for Indian creators and coaches. It has a 5-tab bottom nav: Dashboard, Content, Leads, Apply (Applications), Profile. Additional tabs accessible via navigation from Dashboard or other tabs: Brands (brand deal opportunities with pitch generator + chat simulation), Analytics, Automation, Settings, Pricing.
-
-The existing BrandsTab shows 5 pre-loaded brand deal cards (boAt, MuscleBlaze, Myntra, Unacademy, Mamaearth) with an AI pitch generator, copy pitch, chat simulation, and "Track This Application" integration. It does NOT have a proactive outreach workflow.
-
-Types in `types/growth.ts`: Application, ApplicationStatus, ConnectedAccounts, ScheduledPost, Lead, etc.
+GrowthOS AI is a mobile-first React + Motoko web app for Indian creators/coaches with:
+- 5-tab bottom nav: Dashboard, Content, Leads, Apply (Applications), Profile
+- Onboarding with niche/goal/platform setup
+- ContentTab: 30-day plan, hook generator, script generator, video generator, scheduled posts
+- ProfileTab: Connected Accounts (Instagram/YouTube simulated), Settings, Pricing link, Analytics, Automation, Brand Outreach (OutreachTab)
+- ApplicationsTab: Brand application tracker
+- BrandsTab: Mock brand collaboration deals
+- PricingTab: Exists but no feature gating logic
+- AI generation: Simulated with template-based outputs
+- Backend: Stores profiles, hooks, scripts, content plan, leads, comment rules, engagement entries
+- State: connectedAccounts, scheduledPosts, outreachEntries, applications managed in App.tsx
 
 ## Requested Changes (Diff)
 
 ### Add
-- `OutreachTab.tsx` — new full-screen component with 5 sub-sections accessible via vertical tabs/steps:
-  1. **Niche Analysis**: Input Instagram username → simulate AI analysis → output Niche, Content Type, Audience Type in a result card
-  2. **Brand Suggestions**: After analysis, show 5–6 brand cards (name, emoji, category, why it matches the creator's niche) with `Generate DM` and `Track` buttons per card
-  3. **DM Generator**: Per brand — show First Message + Follow-up Message, Copy buttons, Open Instagram button (links to instagram.com/{brandHandle}), back button
-  4. **Daily Outreach Tracker**: Persistent list of tracked brands with status chips (Not contacted / Contacted / Replied). Tap status chip to cycle through states. Show today's date and usage count.
-  5. **Chat Assistant**: Textarea to paste brand reply + brand name input → "Get AI Response" button → shows Smart Response card + Negotiation Suggestion card. Both have Copy button.
-- **Limit System** (free plan): Track daily usage in localStorage — max 5 brand suggestions/day, max 10 DMs generated/day. Show pill badge `3/5 brands today`. When limit hit, show upgrade nudge instead of action.
-- New types in `types/growth.ts`: `NicheProfile`, `SuggestedBrand`, `OutreachEntry`, `OutreachStatus`, `ChatAssistantResult`
-- Navigation to `outreach` tab from Dashboard quick actions and from BrandsTab header
+- **Pricing plan state** with Free/Basic/Pro tiers stored in app state (localStorage persisted)
+- **Feature gate system**: `usePlan()` hook returning current plan + `canAccess(feature)` helper
+- **Upgrade prompt component**: "Upgrade to unlock 🔒" badge on locked features
+- **Simulate payment success** on the Upgrade Plan page (mock checkout flow)
+- **My Projects section** (new tab/section inside Profile): 
+  - Saves generated graphics and videos as project cards
+  - Categories: Graphics, Videos with filter
+  - Each card: Title, Date created, Type
+  - Actions: View, Download (mock), Delete
+  - Empty state: "No projects yet. Start creating content 🚀"
+- **Brand Campaigns section** (accessible from Dashboard or Profile):
+  - Mock data: brand name, campaign details, budget
+  - Card-based layout
+- **Trends section** (accessible from Dashboard or Profile):
+  - Trending hooks and content ideas
+  - AI-simulated trends based on user niche
+- **Back button** on all sub-screens/overlays (Pricing, Settings, Analytics, Automation, Outreach, Brand Campaigns, My Projects, Trends)
+- **Goal-based AI adaptation** in onboarding — already asks goal but AI content should visibly adapt (Growth/Leads/Sales labeled outputs)
+- **Download buttons** on graphic and video outputs (mock download as text file)
 
 ### Modify
-- `App.tsx`: Add `outreach` case to tab routing; pass new outreach state (tracked brands, usage limits) with handlers
-- `Dashboard.tsx`: Add `Brand Outreach` button in Quick Actions grid linking to `outreach` tab
-- `BrandsTab.tsx`: Add `Outreach` button in header row linking to `outreach` tab via `onNavigate` prop (pass `onNavigate` prop to BrandsTab)
-- `types/growth.ts`: Add new outreach-related types
+- **ProfileTab**: Add "My Projects" and "Brand Campaigns" and "Trends" menu items alongside existing ones
+- **PricingTab**: Add simulated payment success flow with plan selection; upgrade state propagates to App.tsx
+- **GraphicGeneratorDialog**: Add "Copy Prompt" and "Download Graphic" (mock) buttons; save generated graphic to My Projects
+- **VideoGeneratorTab**: Add "Download Video" (mock) button; save generated video to My Projects
+- **ContentTab**: Ensure "Post Now" and "Schedule Post" buttons work with feature gating (scheduling = Basic+)
+- **Dashboard**: Add quick access cards for Brand Campaigns and Trends
+- **BottomNav**: No structural changes needed
+- **Onboarding**: Add visible goal selection step that confirms which plan adapts the output
+- **All AI generation**: Show goal-adapted labels (e.g. "Growth Hook", "Sales Script") based on user's contentGoal
+- **Navigation**: All overlay screens (Settings, Pricing, Analytics, Automation, Outreach, My Projects, Brand Campaigns, Trends) must have a visible back button to return to Profile or previous screen
+- **Feedback toasts**: Ensure "Generated ✅", "Saved ✅", "Downloaded ✅", "Scheduled ✅" appear consistently after every action
+- **Loading states**: Show "Generating..." spinner/skeleton on all AI generation calls
 
 ### Remove
-- Nothing removed
+- Nothing removed — this is additive only
 
 ## Implementation Plan
 
-1. **types/growth.ts** — Add `NicheProfile`, `SuggestedBrand`, `OutreachEntry` (id, brandId, brandName, brandHandle, status, dateAdded), `OutreachStatus` ("Not contacted" | "Contacted" | "Replied"), `ChatAssistantResult`
+1. **Plan state + feature gating**
+   - Add `userPlan` state ("free" | "basic" | "pro") in App.tsx, persisted in localStorage
+   - Create `src/utils/planGating.ts` with `PLAN_FEATURES` map and `canAccess(plan, feature)` helper
+   - Features to gate: video_generator (Basic+), scheduling (Basic+), graphic_download (Basic+), projects (Basic+), brand_campaigns (Pro), trends (Pro), outreach_dm (Pro)
+   - Create `<UpgradeBadge feature={...} />` component that renders lock prompt
 
-2. **OutreachTab.tsx** — Create new component with internal view state: `view: "home" | "brands" | "dm" | "chat"`. Sections:
-   - Home: Niche Analysis form + Daily Outreach Tracker list + Chat Assistant button
-   - Brands: Grid of suggested brand cards (based on niche analysis result)
-   - DM view: Shows generated first + follow-up messages for selected brand
-   - Chat: Paste reply form + AI response output
-   - Limit badges shown on home and brands views
-   - All AI outputs are simulated (deterministic based on niche/brand combination)
-   - localStorage keys: `gos_outreach_date`, `gos_outreach_brand_count`, `gos_outreach_dm_count`
+2. **PricingTab upgrade**
+   - Add "Select Plan" buttons per tier
+   - On click: show simulated payment modal ("Processing..." → "Success! Plan activated")
+   - On success: call `onUpgradePlan(plan)` prop to update App.tsx state
 
-3. **App.tsx** — Add `outreachEntries` state (OutreachEntry[]), handlers (add/update status/delete), pass to OutreachTab; add `outreach` tab case in render
+3. **My Projects section**
+   - Add `projects` state in App.tsx: `Project[]` type with id, title, type ("graphic"|"video"), data, createdAt
+   - Create `MyProjectsTab.tsx` component
+   - Wire into ProfileTab as a navigable section
+   - GraphicGeneratorDialog calls `onSaveProject` after generation
+   - VideoGeneratorTab calls `onSaveProject` after generation
 
-4. **Dashboard.tsx** — Add `Send DM 📤` or `Brand Outreach` button in quick actions
+4. **Brand Campaigns section**
+   - Create `BrandCampaignsTab.tsx` with mock data (5+ campaigns)
+   - Add to ProfileTab menu and Dashboard quick actions
 
-5. **BrandsTab.tsx** — Add `onNavigate` prop; add an `→ Outreach` link button in the header area
+5. **Trends section**
+   - Create `TrendsTab.tsx` with simulated trending hooks/ideas based on user niche
+   - Add to ProfileTab menu and Dashboard quick actions
+   - Pro plan gate: show upgrade prompt for free users
+
+6. **Back navigation**
+   - All overlay screens rendered inside Profile or App navigation need a `<BackButton onClick={onBack} />` at the top
+   - Ensure ProfileTab tracks sub-navigation state and can render sub-tabs with back button
+
+7. **Goal-adapted AI outputs**
+   - Pass `contentGoal` to all generator components
+   - Prefix generated content labels with goal name (e.g. "Growth Hook", "Sales Script")
+   - Template content varies by goal (growth = reach/views focused, leads = CTA heavy, sales = conversion focused)
+
+8. **Download mock actions**
+   - Implement `downloadAsText(content, filename)` utility that creates a blob and triggers browser download
+   - Add to graphic prompt outputs and video script outputs
+
+9. **UX consistency pass**
+   - Audit all buttons for click handlers
+   - Ensure loading states on all generation flows
+   - Ensure toast feedback after every action

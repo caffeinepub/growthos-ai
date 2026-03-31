@@ -92,3 +92,14 @@ export interface ChatAssistantResult {
   smartResponse: string;
   negotiationSuggestion: string;
 }
+
+// Projects
+export type ProjectType = "graphic" | "video";
+
+export interface Project {
+  id: string;
+  title: string;
+  type: ProjectType;
+  data: string; // The generated content (prompt/script)
+  createdAt: string; // ISO string
+}

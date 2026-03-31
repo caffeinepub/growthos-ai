@@ -1,4 +1,4 @@
-import { type ContentGoal, ContentType, type Platform } from "../backend";
+import { ContentGoal, type ContentType, type Platform } from "../backend";
 
 interface ContentPlanInput {
   niche: string;
@@ -8,17 +8,48 @@ interface ContentPlanInput {
 }
 
 const contentTypeRotation: ContentType[] = [
-  ContentType.educational,
-  ContentType.story,
-  ContentType.educational,
-  ContentType.sales,
-  ContentType.educational,
-  ContentType.story,
-  ContentType.educational,
-  ContentType.educational,
-  ContentType.story,
-  ContentType.sales,
+  "educational" as ContentType,
+  "story" as ContentType,
+  "educational" as ContentType,
+  "sales" as ContentType,
+  "educational" as ContentType,
+  "story" as ContentType,
+  "educational" as ContentType,
+  "educational" as ContentType,
+  "story" as ContentType,
+  "sales" as ContentType,
 ];
+
+// ─── Goal-based labels ────────────────────────────────────────────
+
+export function getGoalLabel(contentGoal: ContentGoal): string {
+  const labels: Record<ContentGoal, string> = {
+    [ContentGoal.growth]: "Growth",
+    [ContentGoal.leads]: "Lead",
+    [ContentGoal.sales]: "Sales",
+  };
+  return labels[contentGoal] ?? "Growth";
+}
+
+export function getGoalHookLabel(contentGoal: ContentGoal): string {
+  const labels: Record<ContentGoal, string> = {
+    [ContentGoal.growth]: "Growth Hook",
+    [ContentGoal.leads]: "Lead Hook",
+    [ContentGoal.sales]: "Sales Hook",
+  };
+  return labels[contentGoal] ?? "Growth Hook";
+}
+
+export function getGoalScriptLabel(contentGoal: ContentGoal): string {
+  const labels: Record<ContentGoal, string> = {
+    [ContentGoal.growth]: "Growth Script",
+    [ContentGoal.leads]: "Lead Script",
+    [ContentGoal.sales]: "Sales Funnel Script",
+  };
+  return labels[contentGoal] ?? "Growth Script";
+}
+
+// ─── Topic generation ─────────────────────────────────────────────
 
 const getTopicsByNiche = (niche: string): string[] => {
   const lower = niche.toLowerCase();
@@ -136,7 +167,6 @@ const getTopicsByNiche = (niche: string): string[] => {
       "Quick fix when you mess up a dish",
     ];
   }
-  // Generic topics
   return Array.from({ length: 30 }, (_, i) => {
     const types = [
       "How to",
@@ -153,12 +183,13 @@ const getTopicsByNiche = (niche: string): string[] => {
 
 export const generateContentPlan = (input: ContentPlanInput) => {
   const topics = getTopicsByNiche(input.niche);
+  const goalLabel = getGoalLabel(input.contentGoal);
   const descriptions = [
-    `Share your expertise on this topic with your ${input.targetAudience} audience`,
+    `Share your expertise on this ${goalLabel.toLowerCase()} topic with your ${input.targetAudience} audience`,
     "Engage and inspire your community with authentic storytelling",
     "Educate your followers with actionable tips they can use today",
     "Connect emotionally with your audience through real experiences",
-    "Drive conversions with value-packed content for your offer",
+    `Drive ${input.contentGoal === ContentGoal.sales ? "conversions" : input.contentGoal === ContentGoal.leads ? "leads" : "growth"} with value-packed content`,
   ];
 
   return topics.slice(0, 30).map((title, i) => ({
@@ -168,6 +199,8 @@ export const generateContentPlan = (input: ContentPlanInput) => {
     description: descriptions[i % descriptions.length],
   }));
 };
+
+// ─── Hook templates ───────────────────────────────────────────────
 
 const hinglishHookTemplates = [
   (niche: string) => `Yaar, mujhe ${niche} se itna pyaar kyun hai? 😍`,
@@ -190,22 +223,38 @@ const hinglishHookTemplates = [
     `Ek reel, ek change. ${niche} ko aaj se differently dekho 🎯`,
 ];
 
-export const generateHinglishHooks = (niche: string): string[] => {
-  return hinglishHookTemplates.map((template) => template(niche));
+export const generateHinglishHooks = (
+  niche: string,
+  contentGoal?: ContentGoal,
+): string[] => {
+  const hooks = hinglishHookTemplates.map((template) => template(niche));
+  if (!contentGoal || contentGoal === ContentGoal.growth) return hooks;
+  // Add goal-specific suffix
+  const suffix =
+    contentGoal === ContentGoal.leads
+      ? " | DM me for details 📩"
+      : " | Limited offer - act now! 🔥";
+  return hooks.map((h, i) => (i < 3 ? h + suffix : h));
 };
 
-export const generateScript = (topic: string, niche: string) => {
+// ─── Script generation ────────────────────────────────────────────
+
+export const generateScript = (
+  topic: string,
+  niche: string,
+  contentGoal?: ContentGoal,
+) => {
+  const goal = contentGoal ?? ContentGoal.growth;
+
+  const ctaByGoal: Record<ContentGoal, string> = {
+    [ContentGoal.growth]: `Agar ye helpful laga, toh like karo aur us ek dost ko tag karo jise ye zaroor sunna chahiye! Comment mein batao - "Ready" likhna agar tum bhi start karne wale ho! 🚀 Follow karo for more growth tips! 📈`,
+    [ContentGoal.leads]: `Agar tum bhi ye results chahte ho, toh mujhe DM karo ya bio link pe click karo! Limited spots available hain - aaj hi apply karo. Comment mein "INFO" likhna aur main personally message karunga! 📨 Free consultation available hai!`,
+    [ContentGoal.sales]: `Limited time pe ye offer available hai! Bio mein link hai - abhi click karo! Ye deal miss mat karna. Comment mein "DEAL" likhna for exclusive discount. Offer expires soon - don't wait! 🔥 Only a few spots left!`,
+  };
+
   return {
     hook: `Aaj main aapko ${topic} ke baare mein ek aisi baat bataunga jo shayad aapne pehle kabhi nahi suni! 🔥 Agly 60 seconds mein dhyan se dekho...`,
-    mainContent: `Toh chalte hain seedha point pe.
-
-Point 1: ${topic} mein sabse pehle jo important hai - apna foundation strong karo. Bina solid base ke koi bhi ${niche} mein long-term survive nahi kar sakta.
-
-Point 2: Consistency beats intensity. Roz thoda thoda karo, par karo. 1% improvement daily = 37x better in a year!
-
-Point 3: Community aur accountability. Akele nahi ho tum. Join karo aise logon se jo same journey pe hain.
-
-Ye teeno cheezein implement karo aur dekho kya hota hai apni ${niche} journey mein.`,
-    cta: `Agar ye helpful laga, toh like karo aur us ek dost ko tag karo jise ye zaroor sunna chahiye! Comment mein batao - "Ready" likhna agar tum bhi start karne wale ho! 🚀`,
+    mainContent: `Toh chalte hain seedha point pe.\n\nPoint 1: ${topic} mein sabse pehle jo important hai - apna foundation strong karo. Bina solid base ke koi bhi ${niche} mein long-term survive nahi kar sakta.\n\nPoint 2: Consistency beats intensity. Roz thoda thoda karo, par karo. 1% improvement daily = 37x better in a year!\n\nPoint 3: Community aur accountability. Akele nahi ho tum. Join karo aise logon se jo same journey pe hain.\n\nYe teeno cheezein implement karo aur dekho kya hota hai apni ${niche} journey mein.`,
+    cta: ctaByGoal[goal],
   };
 };
