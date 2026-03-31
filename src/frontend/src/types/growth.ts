@@ -38,3 +38,8 @@ export interface Application {
   notes: string;
   dateApplied: string; // ISO date string
 }
+
+export type ConnectedAccounts = {
+  instagram?: { username: string; connectedAt: string };
+  youtube?: { username: string; connectedAt: string };
+};

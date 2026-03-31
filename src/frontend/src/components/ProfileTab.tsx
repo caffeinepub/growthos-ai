@@ -1,19 +1,36 @@
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
   BarChart2,
   Bot,
   ChevronRight,
   Handshake,
+  Instagram,
+  Loader2,
   Settings,
   UserCircle,
+  Youtube,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
+import { toast } from "sonner";
 import type { UserProfile } from "../backend";
+import type { ConnectedAccounts } from "../types/growth";
 
 interface Props {
   profile: UserProfile;
   onNavigate: (tab: string) => void;
+  connectedAccounts: ConnectedAccounts;
+  onUpdateConnectedAccounts: (update: Partial<ConnectedAccounts>) => void;
 }
+
+type PlatformKey = "instagram" | "youtube";
 
 const platformLabel: Record<string, string> = {
   instagram: "Instagram",
@@ -26,11 +43,76 @@ const goalLabel: Record<string, string> = {
   sales: "Sales & Revenue",
 };
 
-export default function ProfileTab({ profile, onNavigate }: Props) {
+export default function ProfileTab({
+  profile,
+  onNavigate,
+  connectedAccounts,
+  onUpdateConnectedAccounts,
+}: Props) {
   const year = new Date().getFullYear();
   const hostname =
     typeof window !== "undefined" ? window.location.hostname : "";
   const caffeineUrl = `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(hostname)}`;
+
+  const [connectingPlatform, setConnectingPlatform] =
+    useState<PlatformKey | null>(null);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleOpenConnect = (platform: PlatformKey) => {
+    setConnectingPlatform(platform);
+    setUsernameInput("");
+  };
+
+  const handleConnect = () => {
+    if (!usernameInput.trim() || !connectingPlatform) return;
+    setIsConnecting(true);
+    setTimeout(() => {
+      onUpdateConnectedAccounts({
+        [connectingPlatform]: {
+          username: usernameInput.trim().replace(/^@/, ""),
+          connectedAt: new Date().toISOString(),
+        },
+      });
+      const label =
+        connectingPlatform === "instagram" ? "Instagram" : "YouTube";
+      toast.success(`${label} Connected ✅`);
+      setIsConnecting(false);
+      setConnectingPlatform(null);
+      setUsernameInput("");
+    }, 900);
+  };
+
+  const handleDisconnect = (platform: PlatformKey) => {
+    const update: Partial<ConnectedAccounts> = {};
+    update[platform] = undefined;
+    onUpdateConnectedAccounts(update);
+    const label = platform === "instagram" ? "Instagram" : "YouTube";
+    toast.success(`${label} disconnected`);
+  };
+
+  const platformCards: Array<{
+    key: PlatformKey;
+    label: string;
+    Icon: typeof Instagram;
+    color: string;
+    bg: string;
+  }> = [
+    {
+      key: "instagram",
+      label: "Instagram",
+      Icon: Instagram,
+      color: "oklch(0.68 0.18 300)",
+      bg: "oklch(0.68 0.18 300 / 0.12)",
+    },
+    {
+      key: "youtube",
+      label: "YouTube",
+      Icon: Youtube,
+      color: "oklch(0.638 0.22 25)",
+      bg: "oklch(0.638 0.22 25 / 0.12)",
+    },
+  ];
 
   return (
     <div className="animate-fade-in pb-4" data-ocid="profile.section">
@@ -108,8 +190,82 @@ export default function ProfileTab({ profile, onNavigate }: Props) {
         </div>
       </motion.div>
 
+      {/* Connected Accounts */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="mb-4"
+        data-ocid="profile.connected.section"
+      >
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Connected Accounts
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {platformCards.map(({ key, label, Icon, color, bg }, i) => {
+            const account = connectedAccounts[key];
+            const isConnected = !!account;
+            return (
+              <motion.div
+                key={key}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}
+                className="bg-card rounded-xl p-3.5 border border-border card-glow"
+                data-ocid={`profile.${key}.card`}
+              >
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: bg }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color }} />
+                  </div>
+                  <span className="text-xs font-semibold">{label}</span>
+                </div>
+
+                {isConnected ? (
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-[11px] font-semibold text-foreground">
+                        @{account?.username}
+                      </p>
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white inline-block mt-0.5"
+                        style={{ background: "oklch(0.895 0.245 133)" }}
+                      >
+                        Connected ✅
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDisconnect(key)}
+                      className="text-[10px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
+                      data-ocid={`profile.${key}.delete_button`}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleOpenConnect(key)}
+                    className="w-full h-8 text-[11px] font-bold rounded-lg"
+                    style={{ background: color, color: "oklch(0.985 0 0)" }}
+                    data-ocid={`profile.${key}.primary_button`}
+                  >
+                    Connect {label}
+                  </Button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
       {/* Quick Access */}
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
         Quick Access
       </p>
 
@@ -204,7 +360,7 @@ export default function ProfileTab({ profile, onNavigate }: Props) {
       {/* Version + Footer */}
       <div className="mt-8 text-center">
         <p className="text-[11px] text-muted-foreground">
-          GrowthOS AI v5 · India's Creator OS
+          GrowthOS AI v6 · India's Creator OS
         </p>
         <p className="text-[10px] text-muted-foreground/60 mt-1.5">
           © {year}.{" "}
@@ -218,6 +374,72 @@ export default function ProfileTab({ profile, onNavigate }: Props) {
           </a>
         </p>
       </div>
+
+      {/* Connect Dialog */}
+      <Dialog
+        open={!!connectingPlatform}
+        onOpenChange={(o) => !o && setConnectingPlatform(null)}
+      >
+        <DialogContent
+          className="bg-card border-border mx-4 rounded-2xl"
+          data-ocid="profile.connect.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              {connectingPlatform === "instagram" ? (
+                <Instagram
+                  className="w-5 h-5"
+                  style={{ color: "oklch(0.68 0.18 300)" }}
+                />
+              ) : (
+                <Youtube
+                  className="w-5 h-5"
+                  style={{ color: "oklch(0.638 0.22 25)" }}
+                />
+              )}
+              Connect{" "}
+              {connectingPlatform === "instagram" ? "Instagram" : "YouTube"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <Input
+              placeholder={
+                connectingPlatform === "instagram"
+                  ? "@your_instagram_username"
+                  : "Your YouTube channel name"
+              }
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+              className="bg-surface border-border h-11"
+              data-ocid="profile.connect.input"
+            />
+            <Button
+              type="button"
+              onClick={handleConnect}
+              disabled={!usernameInput.trim() || isConnecting}
+              className="w-full h-11 rounded-full font-bold"
+              style={{
+                background:
+                  connectingPlatform === "instagram"
+                    ? "oklch(0.68 0.18 300)"
+                    : "oklch(0.638 0.22 25)",
+                color: "oklch(0.985 0 0)",
+              }}
+              data-ocid="profile.connect.submit_button"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                "Connect Account ✅"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

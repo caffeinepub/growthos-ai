@@ -24,6 +24,7 @@ import {
   type ContentPlanItem,
   ContentStatus,
   ContentType,
+  type Script,
   type UserProfile,
 } from "../backend";
 import {
@@ -34,16 +35,21 @@ import {
   useScripts,
   useUpdateContentStatus,
 } from "../hooks/useQueries";
+import type { ConnectedAccounts } from "../types/growth";
 import { trendFormats } from "../utils/trendingHooks";
 import {
   computeViralityScore,
   getScoreBg,
   getScoreColor,
 } from "../utils/viralityScore";
+import GraphicGeneratorDialog from "./GraphicGeneratorDialog";
+import PostToSocialModal from "./PostToSocialModal";
+import VideoGeneratorTab from "./VideoGeneratorTab";
 
 interface Props {
   profile: UserProfile;
   initialSubTab?: string;
+  connectedAccounts: ConnectedAccounts;
 }
 
 const typeColors: Record<ContentType, string> = {
@@ -59,6 +65,8 @@ const typeLabels: Record<ContentType, string> = {
 };
 
 const SKELETONS = ["a", "b", "c", "d", "e", "f"];
+
+// ─── Plan Sub-Tab ─────────────────────────────────────────────────
 
 function PlanSubTab() {
   const { data: plan, isLoading } = useContentPlan();
@@ -176,7 +184,6 @@ function PlanSubTab() {
         ))}
       </div>
 
-      {/* Plan Item Detail Dialog */}
       {selectedItem && (
         <Dialog
           open={true}
@@ -252,6 +259,8 @@ function PlanSubTab() {
     </>
   );
 }
+
+// ─── Hooks Sub-Tab ────────────────────────────────────────────────
 
 function HooksSubTab({ profile }: { profile: UserProfile }) {
   const { data: hooks, isLoading } = useHooks();
@@ -332,12 +341,26 @@ function HooksSubTab({ profile }: { profile: UserProfile }) {
   );
 }
 
-function ScriptsSubTab({ profile }: { profile: UserProfile }) {
+// ─── Scripts Sub-Tab ──────────────────────────────────────────────
+
+interface ScriptsSubTabProps {
+  profile: UserProfile;
+  connectedAccounts: ConnectedAccounts;
+  onSwitchToVideo: (scriptId?: number) => void;
+}
+
+function ScriptsSubTab({
+  profile,
+  connectedAccounts,
+  onSwitchToVideo,
+}: ScriptsSubTabProps) {
   const { data: scripts, isLoading } = useScripts();
   const generateScript = useGenerateScript();
   const [showDialog, setShowDialog] = useState(false);
   const [topic, setTopic] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [graphicScript, setGraphicScript] = useState<Script | null>(null);
+  const [postScript, setPostScript] = useState<Script | null>(null);
 
   const handleGenerate = () => {
     if (!topic.trim()) return;
@@ -469,6 +492,7 @@ function ScriptsSubTab({ profile }: { profile: UserProfile }) {
                     <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   )}
                 </button>
+
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -479,7 +503,7 @@ function ScriptsSubTab({ profile }: { profile: UserProfile }) {
                       className="overflow-hidden"
                     >
                       <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
-                        {/* Virality score in expanded view */}
+                        {/* Virality score */}
                         <div className="flex items-center justify-between py-1">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                             Virality Score
@@ -514,6 +538,8 @@ function ScriptsSubTab({ profile }: { profile: UserProfile }) {
                             {script.cta}
                           </p>
                         </div>
+
+                        {/* Copy full script */}
                         <button
                           type="button"
                           onClick={() => {
@@ -526,6 +552,44 @@ function ScriptsSubTab({ profile }: { profile: UserProfile }) {
                         >
                           <Copy className="w-3 h-3" /> Copy full script
                         </button>
+
+                        {/* Action row */}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setGraphicScript(script)}
+                            data-ocid={`content.scripts.graphic.button.${i + 1}`}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors font-medium"
+                          >
+                            🎨 Create Graphic
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSwitchToVideo(script.id)}
+                            data-ocid={`content.scripts.video.button.${i + 1}`}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium"
+                            style={{
+                              background: "oklch(0.585 0.195 260 / 0.15)",
+                              color: "oklch(0.585 0.195 260)",
+                              borderColor: "oklch(0.585 0.195 260 / 0.3)",
+                            }}
+                          >
+                            🎬 Create Video
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPostScript(script)}
+                            data-ocid={`content.scripts.post.button.${i + 1}`}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium"
+                            style={{
+                              background: "oklch(0.895 0.245 133 / 0.12)",
+                              color: "oklch(0.895 0.245 133)",
+                              borderColor: "oklch(0.895 0.245 133 / 0.3)",
+                            }}
+                          >
+                            📤 Post to Social
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -535,9 +599,32 @@ function ScriptsSubTab({ profile }: { profile: UserProfile }) {
           })}
         </div>
       )}
+
+      {/* Graphic Generator Dialog */}
+      {graphicScript && (
+        <GraphicGeneratorDialog
+          open={!!graphicScript}
+          onClose={() => setGraphicScript(null)}
+          title={graphicScript.title}
+          hook={graphicScript.hook}
+        />
+      )}
+
+      {/* Post to Social Modal */}
+      {postScript && (
+        <PostToSocialModal
+          open={!!postScript}
+          onClose={() => setPostScript(null)}
+          title={postScript.title}
+          content={`${postScript.hook}\n\n${postScript.mainContent}\n\n${postScript.cta}`}
+          connectedAccounts={connectedAccounts}
+        />
+      )}
     </div>
   );
 }
+
+// ─── Trend Hooks Sub-Tab ──────────────────────────────────────────
 
 function TrendHooksSubTab({ profile }: { profile: UserProfile }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -635,14 +722,30 @@ function TrendHooksSubTab({ profile }: { profile: UserProfile }) {
   );
 }
 
-export default function ContentTab({ profile, initialSubTab = "plan" }: Props) {
+// ─── Content Tab ──────────────────────────────────────────────────
+
+export default function ContentTab({
+  profile,
+  initialSubTab = "plan",
+  connectedAccounts,
+}: Props) {
   const [subTab, setSubTab] = useState(initialSubTab);
+  const [videoInitialScriptId, setVideoInitialScriptId] = useState<
+    number | undefined
+  >();
+  const { data: scripts } = useScripts();
+
+  const handleSwitchToVideo = (scriptId?: number) => {
+    setVideoInitialScriptId(scriptId);
+    setSubTab("video");
+  };
 
   const tabs = [
     { id: "plan", label: "Plan", icon: "📅" },
     { id: "hooks", label: "Hooks", icon: "⚡" },
     { id: "scripts", label: "Scripts", icon: "✍️" },
     { id: "trends", label: "Trends", icon: "🔥" },
+    { id: "video", label: "Video", icon: "🎬" },
   ];
 
   return (
@@ -651,7 +754,7 @@ export default function ContentTab({ profile, initialSubTab = "plan" }: Props) {
 
       {/* Sub-tabs */}
       <div
-        className="flex gap-1 bg-surface rounded-xl p-1 mb-5"
+        className="flex gap-0.5 bg-surface rounded-xl p-1 mb-5 overflow-x-auto no-scrollbar"
         data-ocid="content.tab"
       >
         {tabs.map((tab) => (
@@ -660,13 +763,13 @@ export default function ContentTab({ profile, initialSubTab = "plan" }: Props) {
             key={tab.id}
             onClick={() => setSubTab(tab.id)}
             data-ocid={`content.${tab.id}.tab`}
-            className={`flex-1 flex items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] font-semibold transition-all ${
+            className={`flex-shrink-0 flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[9px] font-semibold transition-all min-w-[52px] ${
               subTab === tab.id
                 ? "bg-brand-blue text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span>{tab.icon}</span>
+            <span className="text-sm leading-none mb-0.5">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
@@ -682,8 +785,20 @@ export default function ContentTab({ profile, initialSubTab = "plan" }: Props) {
         >
           {subTab === "plan" && <PlanSubTab />}
           {subTab === "hooks" && <HooksSubTab profile={profile} />}
-          {subTab === "scripts" && <ScriptsSubTab profile={profile} />}
+          {subTab === "scripts" && (
+            <ScriptsSubTab
+              profile={profile}
+              connectedAccounts={connectedAccounts}
+              onSwitchToVideo={handleSwitchToVideo}
+            />
+          )}
           {subTab === "trends" && <TrendHooksSubTab profile={profile} />}
+          {subTab === "video" && (
+            <VideoGeneratorTab
+              scripts={scripts}
+              initialScriptId={videoInitialScriptId}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

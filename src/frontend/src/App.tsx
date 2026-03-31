@@ -16,7 +16,11 @@ import PricingTab from "./components/PricingTab";
 import ProfileTab from "./components/ProfileTab";
 import SettingsTab from "./components/SettingsTab";
 import { useGetProfile } from "./hooks/useQueries";
-import type { Application, ApplicationStatus } from "./types/growth";
+import type {
+  Application,
+  ApplicationStatus,
+  ConnectedAccounts,
+} from "./types/growth";
 
 const defaultProfile = {
   niche: "Creator",
@@ -53,6 +57,9 @@ export default function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [applications, setApplications] =
     useState<Application[]>(initialApplications);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccounts>(
+    {},
+  );
 
   useEffect(() => {
     if (onboardingComplete) {
@@ -77,6 +84,22 @@ export default function App() {
 
   const handleDeleteApplication = (id: string) => {
     setApplications((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handleUpdateConnectedAccounts = (
+    update: Partial<ConnectedAccounts>,
+  ) => {
+    setConnectedAccounts((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(update) as Array<keyof ConnectedAccounts>) {
+        if (update[key] === undefined) {
+          delete next[key];
+        } else {
+          next[key] = update[key];
+        }
+      }
+      return next;
+    });
   };
 
   const pendingApplicationsCount = applications.filter(
@@ -169,6 +192,7 @@ export default function App() {
               <ContentTab
                 profile={resolvedProfile}
                 initialSubTab={contentSubTab}
+                connectedAccounts={connectedAccounts}
               />
             )}
             {activeTab === "leads" && <LeadsTab />}
@@ -190,6 +214,8 @@ export default function App() {
               <ProfileTab
                 profile={resolvedProfile}
                 onNavigate={handleNavigate}
+                connectedAccounts={connectedAccounts}
+                onUpdateConnectedAccounts={handleUpdateConnectedAccounts}
               />
             )}
             {activeTab === "settings" && (
