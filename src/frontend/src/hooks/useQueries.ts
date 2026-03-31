@@ -169,20 +169,24 @@ export function useSaveProfileAndGenerate() {
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
       if (!actor) throw new Error("Not connected");
-      await actor.createOrUpdateUserProfile(profile);
-      const plan = generateContentPlan(profile);
-      await Promise.all(
-        plan.map((item) =>
-          actor.createContentPlanItem(item.day, {
-            id: 0,
-            day: item.day,
-            title: item.title,
-            contentType: item.contentType,
-            description: item.description,
-            status: ContentStatus.planned,
-          }),
-        ),
-      );
+      try {
+        await actor.createOrUpdateUserProfile(profile);
+        const plan = generateContentPlan(profile);
+        await Promise.all(
+          plan.map((item) =>
+            actor.createContentPlanItem(item.day, {
+              id: 0,
+              day: item.day,
+              title: item.title,
+              contentType: item.contentType,
+              description: item.description,
+              status: ContentStatus.planned,
+            }),
+          ),
+        );
+      } catch {
+        // Backend failed — still let the user in with local profile
+      }
       return profile;
     },
     onSuccess: (profile) => {

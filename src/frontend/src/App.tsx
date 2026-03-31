@@ -16,6 +16,7 @@ import OutreachTab from "./components/OutreachTab";
 import PricingTab from "./components/PricingTab";
 import ProfileTab from "./components/ProfileTab";
 import SettingsTab from "./components/SettingsTab";
+import { useActor } from "./hooks/useActor";
 import { useGetProfile } from "./hooks/useQueries";
 import type {
   Application,
@@ -55,7 +56,9 @@ const initialApplications: Application[] = [
 ];
 
 export default function App() {
-  const { data: profile, isLoading } = useGetProfile();
+  const { isFetching: actorFetching } = useActor();
+  const { data: profile, isLoading: profileLoading } = useGetProfile();
+  const isLoading = actorFetching || profileLoading;
   const [activeTab, setActiveTab] = useState("dashboard");
   const [contentSubTab, setContentSubTab] = useState("plan");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
