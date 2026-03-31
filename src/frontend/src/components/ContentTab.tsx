@@ -9,12 +9,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  CalendarClock,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   Copy,
   FileText,
   Loader2,
+  Pencil,
   Plus,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -35,7 +39,7 @@ import {
   useScripts,
   useUpdateContentStatus,
 } from "../hooks/useQueries";
-import type { ConnectedAccounts } from "../types/growth";
+import type { ConnectedAccounts, ScheduledPost } from "../types/growth";
 import { trendFormats } from "../utils/trendingHooks";
 import {
   computeViralityScore,
@@ -44,12 +48,18 @@ import {
 } from "../utils/viralityScore";
 import GraphicGeneratorDialog from "./GraphicGeneratorDialog";
 import PostToSocialModal from "./PostToSocialModal";
+import SchedulePostModal from "./SchedulePostModal";
 import VideoGeneratorTab from "./VideoGeneratorTab";
 
 interface Props {
   profile: UserProfile;
   initialSubTab?: string;
   connectedAccounts: ConnectedAccounts;
+  scheduledPosts: ScheduledPost[];
+  onAddScheduledPost: (post: ScheduledPost) => void;
+  onDeleteScheduledPost: (id: string) => void;
+  onMarkScheduledPosted: (id: string) => void;
+  onEditScheduledPost: (post: ScheduledPost) => void;
 }
 
 const typeColors: Record<ContentType, string> = {
@@ -65,6 +75,33 @@ const typeLabels: Record<ContentType, string> = {
 };
 
 const SKELETONS = ["a", "b", "c", "d", "e", "f"];
+
+function formatScheduledDateTime(date: string, time: string): string {
+  const parts = date.split("-").map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  const timeParts = time.split(":").map(Number);
+  const hours = timeParts[0];
+  const minutes = timeParts[1];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h = hours % 12 || 12;
+  return `${months[month - 1]} ${day}, ${year} · ${h}:${String(minutes).padStart(2, "0")} ${ampm}`;
+}
 
 // ─── Plan Sub-Tab ─────────────────────────────────────────────────
 
@@ -347,12 +384,14 @@ interface ScriptsSubTabProps {
   profile: UserProfile;
   connectedAccounts: ConnectedAccounts;
   onSwitchToVideo: (scriptId?: number) => void;
+  onSchedulePost: (post: ScheduledPost) => void;
 }
 
 function ScriptsSubTab({
   profile,
   connectedAccounts,
   onSwitchToVideo,
+  onSchedulePost,
 }: ScriptsSubTabProps) {
   const { data: scripts, isLoading } = useScripts();
   const generateScript = useGenerateScript();
@@ -361,6 +400,10 @@ function ScriptsSubTab({
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [graphicScript, setGraphicScript] = useState<Script | null>(null);
   const [postScript, setPostScript] = useState<Script | null>(null);
+  const [scheduleData, setScheduleData] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
 
   const handleGenerate = () => {
     if (!topic.trim()) return;
@@ -589,6 +632,24 @@ function ScriptsSubTab({
                           >
                             📤 Post to Social
                           </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setScheduleData({
+                                title: script.title,
+                                content: `${script.hook}\n\n${script.mainContent}\n\n${script.cta}`,
+                              })
+                            }
+                            data-ocid={`content.scripts.schedule.button.${i + 1}`}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium"
+                            style={{
+                              background: "oklch(0.72 0.185 215 / 0.12)",
+                              color: "oklch(0.72 0.185 215)",
+                              borderColor: "oklch(0.72 0.185 215 / 0.3)",
+                            }}
+                          >
+                            📅 Schedule Post
+                          </button>
                         </div>
                       </div>
                     </motion.div>
@@ -620,6 +681,18 @@ function ScriptsSubTab({
           connectedAccounts={connectedAccounts}
         />
       )}
+
+      {/* Schedule Post Modal */}
+      <SchedulePostModal
+        open={!!scheduleData}
+        onClose={() => setScheduleData(null)}
+        title={scheduleData?.title ?? ""}
+        content={scheduleData?.content ?? ""}
+        onSchedule={(post) => {
+          onSchedulePost(post);
+          setScheduleData(null);
+        }}
+      />
     </div>
   );
 }
@@ -722,12 +795,213 @@ function TrendHooksSubTab({ profile }: { profile: UserProfile }) {
   );
 }
 
+// ─── Scheduled Posts Sub-Tab ──────────────────────────────────────
+
+interface ScheduledPostsSubTabProps {
+  posts: ScheduledPost[];
+  onDelete: (id: string) => void;
+  onMarkPosted: (id: string) => void;
+  onEdit: (post: ScheduledPost) => void;
+}
+
+function ScheduledPostsSubTab({
+  posts,
+  onDelete,
+  onMarkPosted,
+  onEdit,
+}: ScheduledPostsSubTabProps) {
+  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
+
+  const scheduledCount = posts.filter((p) => p.status === "Scheduled").length;
+  const postedCount = posts.filter((p) => p.status === "Posted").length;
+
+  if (posts.length === 0) {
+    return (
+      <div className="text-center py-14" data-ocid="scheduled.empty_state">
+        <CalendarClock className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+        <p className="text-sm font-semibold mb-1">No scheduled posts yet</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Go to Scripts tab, expand a script card and tap{" "}
+          <span className="text-brand-cyan font-medium">📅 Schedule Post</span>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Summary */}
+      <div className="flex gap-2">
+        <div
+          className="flex-1 rounded-xl p-3 border text-center"
+          style={{
+            background: "oklch(0.585 0.195 260 / 0.08)",
+            borderColor: "oklch(0.585 0.195 260 / 0.25)",
+          }}
+        >
+          <p
+            className="text-lg font-black"
+            style={{ color: "oklch(0.72 0.185 215)" }}
+          >
+            {scheduledCount}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Scheduled
+          </p>
+        </div>
+        <div
+          className="flex-1 rounded-xl p-3 border text-center"
+          style={{
+            background: "oklch(0.895 0.245 133 / 0.08)",
+            borderColor: "oklch(0.895 0.245 133 / 0.25)",
+          }}
+        >
+          <p
+            className="text-lg font-black"
+            style={{ color: "oklch(0.895 0.245 133)" }}
+          >
+            {postedCount}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Posted
+          </p>
+        </div>
+      </div>
+
+      {/* Post list */}
+      <div className="space-y-2" data-ocid="scheduled.list">
+        {posts.map((post, i) => (
+          <motion.div
+            key={post.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            data-ocid={`scheduled.item.${i + 1}`}
+            className="bg-card rounded-xl p-3.5 border border-border card-glow"
+          >
+            <div className="flex items-start gap-2.5 mb-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground line-clamp-1">
+                  {post.title}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {formatScheduledDateTime(
+                    post.scheduledDate,
+                    post.scheduledTime,
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {/* Platform badge */}
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={
+                    post.platform === "Instagram"
+                      ? {
+                          background: "oklch(0.68 0.18 300 / 0.15)",
+                          color: "oklch(0.68 0.18 300)",
+                        }
+                      : {
+                          background: "oklch(0.638 0.22 25 / 0.15)",
+                          color: "oklch(0.638 0.22 25)",
+                        }
+                  }
+                >
+                  {post.platform === "Instagram" ? "📸" : "▶️"} {post.platform}
+                </span>
+                {/* Status badge */}
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={
+                    post.status === "Scheduled"
+                      ? {
+                          background: "oklch(0.585 0.195 260 / 0.15)",
+                          color: "oklch(0.72 0.185 215)",
+                        }
+                      : {
+                          background: "oklch(0.895 0.245 133 / 0.15)",
+                          color: "oklch(0.895 0.245 133)",
+                        }
+                  }
+                >
+                  {post.status === "Scheduled" ? "🕐 Scheduled" : "✓ Posted"}
+                </span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-1.5">
+              {post.status === "Scheduled" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMarkPosted(post.id);
+                    toast.success("Marked as Posted ✅");
+                  }}
+                  data-ocid={`scheduled.confirm_button.${i + 1}`}
+                  className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-full border transition-colors font-semibold"
+                  style={{
+                    background: "oklch(0.895 0.245 133 / 0.1)",
+                    color: "oklch(0.895 0.245 133)",
+                    borderColor: "oklch(0.895 0.245 133 / 0.3)",
+                  }}
+                >
+                  <CheckCircle className="w-3 h-3" /> Posted
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditingPost(post)}
+                data-ocid={`scheduled.edit_button.${i + 1}`}
+                className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-full border border-border bg-surface hover:bg-muted transition-colors text-muted-foreground hover:text-foreground font-semibold"
+              >
+                <Pencil className="w-3 h-3" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete(post.id);
+                  toast.success("Deleted ✅");
+                }}
+                data-ocid={`scheduled.delete_button.${i + 1}`}
+                className="flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-full border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 transition-colors text-destructive font-semibold ml-auto"
+              >
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Edit modal */}
+      {editingPost && (
+        <SchedulePostModal
+          open={!!editingPost}
+          onClose={() => setEditingPost(null)}
+          title={editingPost.title}
+          content={editingPost.content}
+          existing={editingPost}
+          onSchedule={(updated) => {
+            onEdit(updated);
+            setEditingPost(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Content Tab ──────────────────────────────────────────────────
 
 export default function ContentTab({
   profile,
   initialSubTab = "plan",
   connectedAccounts,
+  scheduledPosts,
+  onAddScheduledPost,
+  onDeleteScheduledPost,
+  onMarkScheduledPosted,
+  onEditScheduledPost,
 }: Props) {
   const [subTab, setSubTab] = useState(initialSubTab);
   const [videoInitialScriptId, setVideoInitialScriptId] = useState<
@@ -746,6 +1020,7 @@ export default function ContentTab({
     { id: "scripts", label: "Scripts", icon: "✍️" },
     { id: "trends", label: "Trends", icon: "🔥" },
     { id: "video", label: "Video", icon: "🎬" },
+    { id: "scheduled", label: "Sched", icon: "🗓️" },
   ];
 
   return (
@@ -763,7 +1038,7 @@ export default function ContentTab({
             key={tab.id}
             onClick={() => setSubTab(tab.id)}
             data-ocid={`content.${tab.id}.tab`}
-            className={`flex-shrink-0 flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[9px] font-semibold transition-all min-w-[52px] ${
+            className={`flex-shrink-0 flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[9px] font-semibold transition-all min-w-[46px] ${
               subTab === tab.id
                 ? "bg-brand-blue text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -790,6 +1065,7 @@ export default function ContentTab({
               profile={profile}
               connectedAccounts={connectedAccounts}
               onSwitchToVideo={handleSwitchToVideo}
+              onSchedulePost={onAddScheduledPost}
             />
           )}
           {subTab === "trends" && <TrendHooksSubTab profile={profile} />}
@@ -797,6 +1073,14 @@ export default function ContentTab({
             <VideoGeneratorTab
               scripts={scripts}
               initialScriptId={videoInitialScriptId}
+            />
+          )}
+          {subTab === "scheduled" && (
+            <ScheduledPostsSubTab
+              posts={scheduledPosts}
+              onDelete={onDeleteScheduledPost}
+              onMarkPosted={onMarkScheduledPosted}
+              onEdit={onEditScheduledPost}
             />
           )}
         </motion.div>

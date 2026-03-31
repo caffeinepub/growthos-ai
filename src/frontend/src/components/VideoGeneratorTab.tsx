@@ -87,7 +87,7 @@ const sceneTemplates: Array<{
     ],
   },
   {
-    title: "Value Delivery",
+    title: "Value Delivery #1",
     descriptions: [
       "Key insight revealed with supporting visuals and step text",
       "Step-by-step breakdown with on-screen text appearing one by one",
@@ -102,6 +102,60 @@ const sceneTemplates: Array<{
       "✅ Checklist items appearing one by one with checkmark animation",
       "📈 Growth chart or success metrics with animated reveal",
       "💡 Light-bulb moment — overlay text with glow effect",
+    ],
+  },
+  {
+    title: "Value Delivery #2",
+    descriptions: [
+      "Second key insight with deeper explanation and practical example",
+      "Action step that viewers can implement immediately today",
+      "Pro tip that most people overlook, delivered with confidence",
+    ],
+    textOverlays: [
+      "And here's the part most people skip... 🤫",
+      "Step 2: The thing that changes everything ✨",
+      "Double down on this one 🔑",
+    ],
+    visuals: [
+      "🎯 Bold text card with key point highlighted in accent color",
+      "📱 Screen recording or demo visual with annotation overlay",
+      "🔥 Fast montage of examples with quick-cut text transitions",
+    ],
+  },
+  {
+    title: "Story / Example",
+    descriptions: [
+      "Real-life example or micro-story that proves the core point",
+      "Before/after transformation story for emotional connection",
+      "Quick case study showing 3-step progress with on-screen text",
+    ],
+    textOverlays: [
+      "Real story: this happened to me 👇",
+      "Before vs After — see the proof 📊",
+      "Case study: From 0 to results in 30 days",
+    ],
+    visuals: [
+      "📖 Storytelling B-roll or text narrative slide with soft background music cue",
+      "🔄 Split screen comparison with animated before/after slider",
+      "📊 Progress timeline infographic with milestone markers",
+    ],
+  },
+  {
+    title: "Key Takeaway",
+    descriptions: [
+      "Distill the entire video into one memorable quote or rule",
+      "Repeat the most powerful point for maximum retention",
+      "Big truth statement with strong visual emphasis",
+    ],
+    textOverlays: [
+      "Remember this ONE thing ⭐",
+      "Write this down... seriously ✍️",
+      "The golden rule: stay consistent",
+    ],
+    visuals: [
+      "⭐ Large centered quote card — white text on dark, minimal, bold",
+      "📝 Animated text writing itself on screen with marker sound effect",
+      "💡 Glowing highlight on single key phrase, rest fades to dark",
     ],
   },
   {
@@ -125,10 +179,13 @@ const sceneTemplates: Array<{
 ];
 
 const sceneBorderColors = [
-  "oklch(0.585 0.195 260)", // brand-blue
-  "oklch(0.895 0.245 133)", // brand-green
-  "oklch(0.72 0.185 215)", // brand-cyan
-  "oklch(0.68 0.18 300)", // purple
+  "oklch(0.585 0.195 260)",
+  "oklch(0.895 0.245 133)",
+  "oklch(0.72 0.185 215)",
+  "oklch(0.68 0.18 300)",
+  "oklch(0.638 0.22 25)",
+  "oklch(0.72 0.185 215)",
+  "oklch(0.895 0.245 133)",
 ];
 
 const sceneBgColors = [
@@ -136,6 +193,9 @@ const sceneBgColors = [
   "oklch(0.895 0.245 133 / 0.08)",
   "oklch(0.72 0.185 215 / 0.08)",
   "oklch(0.68 0.18 300 / 0.08)",
+  "oklch(0.638 0.22 25 / 0.08)",
+  "oklch(0.72 0.185 215 / 0.08)",
+  "oklch(0.895 0.245 133 / 0.08)",
 ];
 
 function generateScenes(content: string): Scene[] {
@@ -180,6 +240,8 @@ const scriptTemplates = [
     `${hook}\n\nLet me break this down for you in the simplest way possible.\n\nMost people approach ${prompt.toLowerCase()} completely wrong. They focus on the wrong things, put in effort without direction, and give up before seeing results.\n\nHere's what I discovered after months of trying:\n\n1. Clarity beats effort every single time\n2. Small daily actions compound into massive results\n3. The right system removes willpower from the equation\n\nStart with one clear goal. Break it down into daily micro-actions. Track weekly. Adjust and keep going.\n\nRemember — progress beats perfection. Start today, not tomorrow.`,
   (hook: string, prompt: string) =>
     `${hook}\n\nI've seen hundreds of people struggle with ${prompt.toLowerCase()}. Here's the raw truth.\n\nWhen I first started my journey, I made every mistake in the book. But those mistakes taught me the formula that actually works.\n\nThe formula is simple: Focus + Consistent Action + Right Mindset = Results\n\nMost people have ambition. Some take action. But almost nobody combines all three consistently.\n\nToday I'm giving you the exact tools to stay consistent even when it gets hard.\n\nSave this video — you'll want to come back to it. 🔖`,
+  (hook: string, prompt: string) =>
+    `${hook}\n\nLet's be real — ${prompt.toLowerCase()} isn't as complicated as most people think.\n\nHere's the simple 3-part framework I wish someone had shared with me:\n\nPart 1: CLARITY — Know exactly what you want and why it matters to you personally.\n\nPart 2: CONSISTENCY — Show up for just 15 minutes a day, every single day. Compound effect is real.\n\nPart 3: COMMUNITY — Find your tribe. Growth accelerates 10x when you're surrounded by the right people.\n\nThat's it. No secret sauce. No expensive course needed.\n\nWhich part are you working on right now? Tell me in the comments 👇`,
 ];
 
 function detectCategory(prompt: string): string {
@@ -236,6 +298,7 @@ function generateFromScript(script: Script): VideoResult {
 // ─── Sub-components ──────────────────────────────────────────────
 
 function SceneCard({ scene, index }: { scene: Scene; index: number }) {
+  const colorIdx = index % sceneBorderColors.length;
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -243,17 +306,17 @@ function SceneCard({ scene, index }: { scene: Scene; index: number }) {
       transition={{ delay: index * 0.07 }}
       className="rounded-xl p-3.5"
       style={{
-        background: sceneBgColors[index],
+        background: sceneBgColors[colorIdx],
         border: "1px solid oklch(var(--border))",
         borderLeftWidth: "4px",
-        borderLeftColor: sceneBorderColors[index],
+        borderLeftColor: sceneBorderColors[colorIdx],
       }}
       data-ocid={`video.scene.item.${index + 1}`}
     >
       <div className="flex items-center gap-2 mb-2">
         <span
           className="text-[10px] font-black px-2 py-0.5 rounded-full text-white"
-          style={{ background: sceneBorderColors[index] }}
+          style={{ background: sceneBorderColors[colorIdx] }}
         >
           Scene {scene.number}
         </span>
@@ -293,6 +356,11 @@ function VideoResultView({
   result: VideoResult;
   onCopyScript: () => void;
 }) {
+  const handleUseContent = () => {
+    navigator.clipboard.writeText(result.scriptText);
+    toast.success("Script copied — ready to use! ✅");
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -316,7 +384,7 @@ function VideoResultView({
       {/* Script */}
       <div className="bg-card rounded-xl p-3.5 border border-border">
         <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider mb-1.5">
-          📝 Script
+          📝 Full Script
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
           {result.scriptText}
@@ -326,7 +394,7 @@ function VideoResultView({
       {/* Scene Breakdown */}
       <div>
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          🎬 Scene Breakdown
+          🎬 Scene Breakdown ({result.scenes.length} scenes)
         </p>
         <div className="space-y-2">
           {result.scenes.map((scene, i) => (
@@ -349,13 +417,22 @@ function VideoResultView({
         <Button
           type="button"
           variant="outline"
-          onClick={() => toast.success("Demo downloaded ✅")}
+          onClick={handleUseContent}
           className="flex-1 h-10 text-xs gap-1.5 border-border hover:bg-surface"
           data-ocid="video.edit_button"
         >
-          <Download className="w-3.5 h-3.5" /> Download Demo ⬇️
+          Use Content ✨
         </Button>
       </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => toast.success("Demo downloaded ✅")}
+        className="w-full h-10 text-xs gap-1.5 border-border hover:bg-surface"
+        data-ocid="video.primary_button"
+      >
+        <Download className="w-3.5 h-3.5" /> Download Demo ⬇️
+      </Button>
     </motion.div>
   );
 }
@@ -396,7 +473,7 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
           : generateFromPrompt(prompt.trim());
       setResult(generated);
       setIsGenerating(false);
-      toast.success("Video Generated ✅");
+      toast.success("Video Plan Created ✅");
     }, 2000);
   };
 
@@ -527,7 +604,7 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating
-                    video...
+                    video plan...
                   </>
                 ) : (
                   "Generate Video Plan 🎬"
@@ -582,8 +659,8 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating
-                    video...
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating
+                    script + scenes ✨
                   </>
                 ) : (
                   "Generate Video 🎬"
@@ -604,10 +681,10 @@ export default function VideoGeneratorTab({ scripts, initialScriptId }: Props) {
         >
           <Loader2 className="w-8 h-8 animate-spin text-brand-blue mx-auto mb-3" />
           <p className="text-sm text-muted-foreground font-medium">
-            Creating your video plan...
+            Creating video plan...
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Generating scenes &amp; script ✨
+            Generating script + scenes ✨
           </p>
         </motion.div>
       )}

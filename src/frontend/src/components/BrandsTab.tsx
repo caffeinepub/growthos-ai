@@ -26,6 +26,7 @@ interface ChatMessage {
 
 interface Props {
   onAddApplication?: (app: Application) => void;
+  onNavigate?: (tab: string) => void;
 }
 
 const brandDeals: BrandDeal[] = [
@@ -95,26 +96,68 @@ const brandReplies: Record<string, string[]> = {
   "3": [
     "Hello! Your aesthetic looks amazing 😍 Can you share your last 3 Reel performance stats?",
     "We love your style! We're looking for creators in metros — are you based in Mumbai, Delhi, or Bangalore?",
-    "Great profile match! Let's schedule a 15-min intro call this week. When are you available?",
+    "Great profile match! Let's schedule a 15-min intro call. Are you free this week?",
   ],
   "4": [
-    "Hi there! Your audience demographic is a great fit for our UPSC course 📚 What's your primary content format?",
-    "Excellent! We need creators who can explain complex topics simply. Can you share a sample integration video?",
-    "We're excited to work with you! Our campaigns run for 3 months with monthly payouts. Interested?",
+    "Hi there! Thanks for your interest. What subjects does your audience follow mostly?",
+    "That's great! We're looking for creators who can explain concepts clearly. Can you share a sample video?",
+    "We love your teaching style! Our campaign starts next month. Let's discuss payment terms.",
   ],
   "5": [
-    "Hey! We love authentic skincare creators 🌿 Is your skin type oily, dry, or combination?",
-    "Perfect! We send a full product kit before filming. Can you handle delivery to your city within 5 days?",
-    "Amazing! Our collab includes a ₹2,000 bonus for every 10k views. Let's get started!",
+    "Hey! We love your content style 🌸 What's your current skincare routine?",
+    "Perfect! Our Vitamin C range just launched. Would you be open to a 4-week collaboration?",
+    "We'll ship you the products first. Please share your address and we'll get started!",
+  ],
+};
+
+const userMessages: Record<string, string[]> = {
+  "1": [
+    "Hi boAt team! I'm a tech/lifestyle creator with 15k engaged followers. Would love to collaborate on the Airdopes campaign!",
+    "My handle is @techwithravi and I get around 8-12% engagement. Here's my latest Reel: [link]",
+    "That sounds great! I'll fill the form right away.",
+  ],
+  "2": [
+    "Hey MuscleBlaze! I create gym and home workout content. Your protein supplements are already on my wishlist!",
+    "I do gym-focused workouts — 3 times a week, HIIT + strength training. 2 posts/week works for me!",
+    "Looking forward to the email. I'm excited about this collaboration!",
+  ],
+  "3": [
+    "Hello Myntra! I create lifestyle and fashion content with focus on Indian fashion trends.",
+    "I'm based in Mumbai! Happy to share all stats and analytics.",
+    "Sure! I'm free Tuesday or Thursday afternoon. Let me know!",
+  ],
+  "4": [
+    "Hi Unacademy! I create educational content focused on competitive exams and career guidance.",
+    "My audience is 70% UPSC aspirants and 30% SSC/banking students. Here's a sample: [link]",
+    "Excited to discuss the campaign! Looking forward to the details.",
+  ],
+  "5": [
+    "Hi Mamaearth! I'm a beauty and skincare creator. I love your clean beauty philosophy!",
+    "A 4-week collaboration sounds perfect! My audience loves natural skincare products.",
+    "Address sent to your DM. Thank you so much, excited for this!",
   ],
 };
 
 function generatePitch(deal: BrandDeal): string {
-  const preview = deal.campaign.split(" ").slice(0, 4).join(" ");
-  return `Hi ${deal.name} Team,\n\nI'm a content creator focused on authentic, engaging content for Indian audiences. I came across your ${preview}... campaign and I'd love to collaborate!\n\nMy audience trusts my recommendations because I only work with brands I genuinely love. I can deliver high-quality content that drives real engagement and conversions for ${deal.name}.\n\nI'm flexible on the format and open to a quick call to discuss. Looking forward to working together!\n\n— [Your Name]`;
+  return `Hi ${deal.name} team! 👋
+
+I'm a creator in the ${deal.category} space with a highly engaged Indian audience. I came across your ${deal.campaign.split(" ").slice(0, 5).join(" ")}... campaign and I believe my content style is a perfect match.
+
+Here's why I think we'd work well together:
+• My audience demographic aligns with your target customers
+• I create authentic, high-quality content that drives real engagement
+• I've successfully completed brand collaborations before
+• My content style complements ${deal.name}'s brand values
+
+I'd love to discuss how we can create value together. Could we hop on a quick call or continue via DM?
+
+Looking forward to hearing from you! 🙌
+
+[Your Name]
+[Your IG Handle]`;
 }
 
-export default function BrandsTab({ onAddApplication }: Props) {
+export default function BrandsTab({ onAddApplication, onNavigate }: Props) {
   const [selectedDeal, setSelectedDeal] = useState<BrandDeal | null>(null);
   const [expandedPitch, setExpandedPitch] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
@@ -132,110 +175,70 @@ export default function BrandsTab({ onAddApplication }: Props) {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const openChat = (deal: BrandDeal) => {
-    setSelectedDeal(deal);
-    setInputText("");
-    setIsTyping(false);
-    setMessages((prev) => {
-      if (prev[deal.id] && prev[deal.id].length > 0) return prev;
-      const greeting =
-        brandReplies[deal.id]?.[0] ?? "Hi! Thanks for reaching out 🙌";
-      return {
-        ...prev,
-        [deal.id]: [
-          {
-            id: `brand-init-${deal.id}`,
-            role: "brand",
-            text: greeting,
-            timestamp: Date.now(),
-          },
-        ],
-      };
-    });
-    setTimeout(() => inputRef.current?.focus(), 150);
-  };
+  const dealMessages = selectedDeal ? (messages[selectedDeal.id] ?? []) : [];
 
-  const sendMessage = () => {
-    if (!selectedDeal || !inputText.trim()) return;
-    const dealId = selectedDeal.id;
+  const handleSendMessage = () => {
+    if (!inputText.trim() || !selectedDeal) return;
+    const userMsgIndex = dealMessages.filter((m) => m.role === "user").length;
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: `u-${Date.now()}`,
       role: "user",
       text: inputText.trim(),
       timestamp: Date.now(),
     };
-
     setMessages((prev) => ({
       ...prev,
-      [dealId]: [...(prev[dealId] ?? []), userMsg],
+      [selectedDeal.id]: [...(prev[selectedDeal.id] ?? []), userMsg],
     }));
     setInputText("");
     setIsTyping(true);
-
-    setTimeout(() => {
-      const replies = brandReplies[dealId] ?? [];
-      const existingCount = (messages[dealId]?.length ?? 0) + 1;
-      const idx =
-        existingCount < replies.length
-          ? existingCount
-          : (existingCount % (replies.length - 1)) + 1;
-      const replyText = replies[idx] ?? replies[replies.length - 1];
-      const brandMsg: ChatMessage = {
-        id: `brand-${Date.now()}`,
-        role: "brand",
-        text: replyText,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => ({
-        ...prev,
-        [dealId]: [...(prev[dealId] ?? []), brandMsg],
-      }));
-      setIsTyping(false);
-    }, 1200);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    setTimeout(
+      () => {
+        const replies = brandReplies[selectedDeal.id] ?? [];
+        const replyText =
+          replies[userMsgIndex % replies.length] ??
+          "Thanks for your message! We'll get back to you soon.";
+        const brandMsg: ChatMessage = {
+          id: `b-${Date.now()}`,
+          role: "brand",
+          text: replyText,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => ({
+          ...prev,
+          [selectedDeal.id]: [...(prev[selectedDeal.id] ?? []), brandMsg],
+        }));
+        setIsTyping(false);
+      },
+      1200 + Math.random() * 800,
+    );
   };
 
   const copyPitch = (deal: BrandDeal) => {
-    navigator.clipboard.writeText(generatePitch(deal)).then(() => {
-      setCopiedId(deal.id);
-      toast.success("Pitch copied ✅");
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+    navigator.clipboard.writeText(generatePitch(deal));
+    setCopiedId(deal.id);
+    toast.success("Pitch copied ✅");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const trackApplication = (deal: BrandDeal) => {
     if (!onAddApplication) return;
     const app: Application = {
-      id: crypto.randomUUID(),
+      id: `brand-${deal.id}-${Date.now()}`,
       brandName: deal.name,
-      campaignName:
-        deal.campaign.length > 60
-          ? `${deal.campaign.slice(0, 60)}...`
-          : deal.campaign,
+      campaignName: `${deal.campaign.slice(0, 60)}...`,
       status: "Applied",
-      notes: generatePitch(deal),
+      notes: `Generated pitch via Brand Collabs. Campaign: ${deal.campaign}`,
       dateApplied: new Date().toISOString(),
     };
     onAddApplication(app);
     setTrackedDeals((prev) => new Set([...prev, deal.id]));
-    toast.success("Tracked in My Applications ✅");
+    toast.success(`${deal.name} tracked in My Applications ✅`);
   };
 
-  const togglePitch = (dealId: string) => {
-    setExpandedPitch((prev) => (prev === dealId ? null : dealId));
-  };
-
-  // ── Chat View ────────────────────────────────────────────────────────────
+  // Chat view
   if (selectedDeal) {
     const deal = selectedDeal;
-    const dealMessages = messages[deal.id] ?? [];
-
     return (
       <div
         className="flex flex-col h-[calc(100dvh-6rem)]"
@@ -289,137 +292,155 @@ export default function BrandsTab({ onAddApplication }: Props) {
                 >
                   {msg.role === "brand" && (
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0"
-                      style={{
-                        background: "oklch(0.22 0.014 250)",
-                        border: "1px solid oklch(0.27 0.013 250)",
-                      }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
+                      style={{ background: "oklch(0.27 0.013 250)" }}
                     >
                       {deal.emoji}
                     </div>
                   )}
                   <div
-                    className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    className={`max-w-[75%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
                       msg.role === "user"
                         ? "rounded-tr-sm text-white"
-                        : "rounded-tl-sm text-foreground"
+                        : "rounded-tl-sm text-foreground/90"
                     }`}
                     style={{
                       background:
                         msg.role === "user"
-                          ? "oklch(0.44 0.16 260)"
-                          : "oklch(0.22 0.014 250)",
-                      border:
-                        msg.role === "brand"
-                          ? "1px solid oklch(0.27 0.013 250)"
-                          : "none",
+                          ? "oklch(0.585 0.195 260)"
+                          : "oklch(0.27 0.013 250)",
                     }}
                   >
                     {msg.text}
                   </div>
                 </motion.div>
               ))}
+            </AnimatePresence>
 
-              {/* Typing indicator */}
-              {isTyping && (
-                <motion.div
-                  key="typing"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="flex gap-2 flex-row"
-                  data-ocid="brands.chat.loading_state"
+            {/* Typing indicator */}
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex gap-2"
+                data-ocid="brands.chat.loading_state"
+              >
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
+                  style={{ background: "oklch(0.27 0.013 250)" }}
                 >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0"
-                    style={{
-                      background: "oklch(0.22 0.014 250)",
-                      border: "1px solid oklch(0.27 0.013 250)",
-                    }}
-                  >
-                    {deal.emoji}
-                  </div>
-                  <div
-                    className="flex items-center gap-1 px-4 py-3 rounded-2xl rounded-tl-sm"
-                    style={{
-                      background: "oklch(0.22 0.014 250)",
-                      border: "1px solid oklch(0.27 0.013 250)",
-                    }}
-                  >
+                  {deal.emoji}
+                </div>
+                <div
+                  className="rounded-2xl rounded-tl-sm px-3 py-2"
+                  style={{ background: "oklch(0.27 0.013 250)" }}
+                >
+                  <div className="flex gap-1 items-center h-4">
                     {[0, 1, 2].map((i) => (
-                      <motion.span
+                      <motion.div
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
-                        animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                        animate={{ y: [0, -4, 0] }}
                         transition={{
-                          duration: 0.8,
-                          repeat: Number.POSITIVE_INFINITY,
+                          duration: 0.6,
                           delay: i * 0.15,
+                          repeat: Number.POSITIVE_INFINITY,
                         }}
+                        className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
                       />
                     ))}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+
+            {dealMessages.length === 0 && !isTyping && (
+              <div
+                className="text-center py-8"
+                data-ocid="brands.chat.empty_state"
+              >
+                <p className="text-3xl mb-3">{deal.emoji}</p>
+                <p className="text-sm font-semibold mb-1">{deal.name}</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Start the conversation! Use the pitch below or write your own.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pitchText =
+                      userMessages[deal.id]?.[0] ??
+                      `Hi ${deal.name}! I'd love to collaborate.`;
+                    setInputText(pitchText);
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                  }}
+                  className="text-xs text-brand-blue underline-offset-2 hover:underline"
+                  data-ocid="brands.chat.primary_button"
+                >
+                  Use suggested opener →
+                </button>
+              </div>
+            )}
             <div ref={chatBottomRef} />
           </div>
         </ScrollArea>
 
-        {/* Input Row */}
-        <div
-          className="pt-3 border-t border-border flex gap-2 items-center"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)" }}
-        >
-          <Input
-            ref={inputRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Message ${deal.name}...`}
-            className="flex-1 h-11 bg-card border-border text-sm rounded-xl"
-            data-ocid="brands.input"
-            disabled={isTyping}
-          />
-          <Button
-            type="button"
-            size="icon"
-            onClick={sendMessage}
-            disabled={!inputText.trim() || isTyping}
-            className="h-11 w-11 rounded-xl shrink-0"
-            style={{
-              background: inputText.trim()
-                ? "oklch(0.585 0.195 260)"
-                : "oklch(0.27 0.013 250)",
-            }}
-            data-ocid="brands.submit_button"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        {/* Input */}
+        <div className="pt-3 border-t border-border">
+          <div className="flex gap-2 items-center">
+            <Input
+              ref={inputRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              placeholder="Type your message..."
+              className="flex-1 h-10 text-sm rounded-xl border-border bg-card"
+              data-ocid="brands.chat.input"
+            />
+            <Button
+              type="button"
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || isTyping}
+              className="h-10 w-10 rounded-xl p-0 flex-shrink-0"
+              style={{ background: "oklch(0.585 0.195 260)" }}
+              data-ocid="brands.chat.submit_button"
+            >
+              <Send className="w-4 h-4 text-white" />
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── List View ────────────────────────────────────────────────────────────
+  // List view
   return (
-    <div data-ocid="brands.section">
-      {/* Header */}
+    <div className="pb-4 animate-fade-in" data-ocid="brands.list.panel">
       <div className="mb-5">
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-xl font-bold text-foreground">
             🤝 Brand Collabs
           </h1>
-          <span
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
-            style={{
-              background: "oklch(0.585 0.195 260 / 0.15)",
-              color: "oklch(0.72 0.185 215)",
-              border: "1px solid oklch(0.585 0.195 260 / 0.25)",
-            }}
-          >
-            ✨ New deals weekly
-          </span>
+          <div className="flex items-center gap-2">
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() => onNavigate("outreach")}
+                className="text-xs text-brand-cyan underline-offset-2 hover:underline"
+                data-ocid="brands.outreach.link"
+              >
+                📨 Outreach →
+              </button>
+            )}
+            <span
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+              style={{
+                background: "oklch(0.585 0.195 260 / 0.15)",
+                color: "oklch(0.72 0.185 215)",
+                border: "1px solid oklch(0.585 0.195 260 / 0.25)",
+              }}
+            >
+              ✨ New deals weekly
+            </span>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           Matched opportunities for your niche
@@ -445,54 +466,60 @@ export default function BrandsTab({ onAddApplication }: Props) {
                 <span className="text-2xl leading-none">{deal.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm text-foreground leading-tight">
-                      {deal.name}
-                    </p>
-                    <span className="bg-muted/30 text-muted-foreground text-[10px] px-2 py-0.5 rounded-full shrink-0">
+                    <p className="text-sm font-bold">{deal.name}</p>
+                    <span
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: "oklch(0.27 0.013 250)",
+                        color: "oklch(0.72 0.185 215)",
+                      }}
+                    >
                       {deal.category}
                     </span>
                   </div>
                 </div>
                 <span
-                  className={`text-sm font-bold shrink-0 ${deal.budgetColor}`}
+                  className={`text-sm font-bold flex-shrink-0 ${deal.budgetColor}`}
                 >
                   {deal.budget}
                 </span>
               </div>
 
-              {/* Campaign description */}
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3">
+              {/* Campaign text */}
+              <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                 {deal.campaign}
               </p>
 
               {/* Action buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => togglePitch(deal.id)}
-                  className="flex-1 h-8 text-xs gap-1.5 border-border hover:bg-brand-green/10 hover:text-brand-green hover:border-brand-green/40 transition-colors"
-                  data-ocid={`brands.open_modal_button.${index + 1}`}
+                  onClick={() => setSelectedDeal(deal)}
+                  className="h-7 text-xs gap-1.5 border-border hover:bg-brand-blue/10 hover:text-brand-blue hover:border-brand-blue/40"
+                  data-ocid={`brands.edit_button.${index + 1}`}
                 >
                   <Sparkles className="w-3 h-3" />
-                  {expandedPitch === deal.id ? "Hide Pitch" : "✉️ Apply"}
+                  Chat & Apply
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => openChat(deal)}
-                  className="flex-1 h-8 text-xs gap-1.5 border-border hover:bg-brand-blue/10 hover:text-brand-blue hover:border-brand-blue/40 transition-colors"
+                  onClick={() =>
+                    setExpandedPitch(expandedPitch === deal.id ? null : deal.id)
+                  }
+                  className="h-7 text-xs gap-1.5 border-border hover:bg-purple-500/10 hover:text-purple-400 hover:border-purple-500/40"
                   data-ocid={`brands.secondary_button.${index + 1}`}
                 >
-                  💬 Chat
+                  <Copy className="w-3 h-3" />
+                  Generate Pitch
                 </Button>
               </div>
 
-              {/* Pitch expanded panel */}
+              {/* Pitch expansion */}
               <AnimatePresence>
                 {expandedPitch === deal.id && (
                   <motion.div
-                    key="pitch"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}

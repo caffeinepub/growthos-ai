@@ -12,6 +12,7 @@ import ContentTab from "./components/ContentTab";
 import Dashboard from "./components/Dashboard";
 import LeadsTab from "./components/LeadsTab";
 import Onboarding from "./components/Onboarding";
+import OutreachTab from "./components/OutreachTab";
 import PricingTab from "./components/PricingTab";
 import ProfileTab from "./components/ProfileTab";
 import SettingsTab from "./components/SettingsTab";
@@ -20,6 +21,9 @@ import type {
   Application,
   ApplicationStatus,
   ConnectedAccounts,
+  OutreachEntry,
+  OutreachStatus,
+  ScheduledPost,
 } from "./types/growth";
 
 const defaultProfile = {
@@ -60,6 +64,8 @@ export default function App() {
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccounts>(
     {},
   );
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [outreachEntries, setOutreachEntries] = useState<OutreachEntry[]>([]);
 
   useEffect(() => {
     if (onboardingComplete) {
@@ -100,6 +106,41 @@ export default function App() {
       }
       return next;
     });
+  };
+
+  const handleAddScheduledPost = (post: ScheduledPost) => {
+    setScheduledPosts((prev) => [...prev, post]);
+  };
+
+  const handleDeleteScheduledPost = (id: string) => {
+    setScheduledPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleMarkScheduledPosted = (id: string) => {
+    setScheduledPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: "Posted" as const } : p)),
+    );
+  };
+
+  const handleEditScheduledPost = (post: ScheduledPost) => {
+    setScheduledPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
+  };
+
+  const handleAddOutreachEntry = (entry: OutreachEntry) => {
+    setOutreachEntries((prev) => [...prev, entry]);
+  };
+
+  const handleUpdateOutreachEntryStatus = (
+    id: string,
+    status: OutreachStatus,
+  ) => {
+    setOutreachEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status } : e)),
+    );
+  };
+
+  const handleDeleteOutreachEntry = (id: string) => {
+    setOutreachEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
   const pendingApplicationsCount = applications.filter(
@@ -193,13 +234,21 @@ export default function App() {
                 profile={resolvedProfile}
                 initialSubTab={contentSubTab}
                 connectedAccounts={connectedAccounts}
+                scheduledPosts={scheduledPosts}
+                onAddScheduledPost={handleAddScheduledPost}
+                onDeleteScheduledPost={handleDeleteScheduledPost}
+                onMarkScheduledPosted={handleMarkScheduledPosted}
+                onEditScheduledPost={handleEditScheduledPost}
               />
             )}
             {activeTab === "leads" && <LeadsTab />}
             {activeTab === "automation" && <AutomationTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
             {activeTab === "brands" && (
-              <BrandsTab onAddApplication={handleAddApplication} />
+              <BrandsTab
+                onAddApplication={handleAddApplication}
+                onNavigate={handleNavigate}
+              />
             )}
             {activeTab === "applications" && (
               <ApplicationsTab
@@ -208,6 +257,15 @@ export default function App() {
                 onAddApplication={handleAddApplication}
                 onUpdateStatus={handleUpdateStatus}
                 onDeleteApplication={handleDeleteApplication}
+              />
+            )}
+            {activeTab === "outreach" && (
+              <OutreachTab
+                outreachEntries={outreachEntries}
+                onAddEntry={handleAddOutreachEntry}
+                onUpdateEntryStatus={handleUpdateOutreachEntryStatus}
+                onDeleteEntry={handleDeleteOutreachEntry}
+                onNavigate={handleNavigate}
               />
             )}
             {activeTab === "profile" && (

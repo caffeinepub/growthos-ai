@@ -8,6 +8,7 @@ import {
   Copy,
   FileText,
   Loader2,
+  Send,
   Settings,
   UserCircle,
   Users,
@@ -219,27 +220,27 @@ export default function Dashboard({
                   {todayItem.description}
                 </p>
               </div>
-              <div
-                className="w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center text-2xl"
-                style={{
-                  background:
-                    "linear-gradient(135deg, oklch(0.585 0.195 260 / 0.3), oklch(0.72 0.185 215 / 0.2))",
-                }}
+              <button
+                type="button"
+                onClick={() => onNavigate("content", "plan")}
+                className="text-xs text-brand-blue flex items-center gap-0.5 flex-shrink-0 mt-1"
               >
-                📝
-              </div>
+                View <ChevronRight className="w-3 h-3" />
+              </button>
             </div>
           </motion.div>
         ) : (
           <div
-            className="bg-card rounded-xl p-4 card-glow text-center"
-            data-ocid="dashboard.empty_state"
+            className="bg-card rounded-xl p-4 text-center"
+            data-ocid="dashboard.plan.empty_state"
           >
-            <p className="text-sm text-muted-foreground">No content plan yet</p>
+            <p className="text-xs text-muted-foreground mb-2">
+              No content plan yet. Generate your 30-day plan!
+            </p>
             <button
               type="button"
               onClick={() => onNavigate("content", "plan")}
-              className="text-xs text-brand-blue mt-1"
+              className="text-xs text-brand-blue font-medium"
             >
               Generate plan →
             </button>
@@ -320,43 +321,63 @@ export default function Dashboard({
               </span>
             )}
           </Button>
+
+          {/* Brand Outreach shortcut — full width */}
+          <Button
+            type="button"
+            data-ocid="dashboard.outreach_button"
+            onClick={() => onNavigate("outreach")}
+            variant="outline"
+            className="col-span-2 h-11 rounded-xl border-border bg-card hover:bg-surface text-sm font-medium gap-2 justify-start px-4"
+          >
+            <Send className="w-3.5 h-3.5 text-pink-400" />
+            Brand Outreach
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              AI-powered
+            </span>
+          </Button>
         </div>
       </div>
 
       {/* Creator Profile */}
       <div className="mb-5">
-        <div className="flex items-center gap-2 mb-2.5">
-          <UserCircle className="w-4 h-4 text-brand-cyan" />
+        <div className="flex items-center justify-between mb-2.5">
           <h2 className="text-sm font-semibold">Creator Profile</h2>
+          <button
+            type="button"
+            onClick={() => onNavigate("profile")}
+            className="text-xs text-brand-blue flex items-center gap-0.5"
+          >
+            Edit <ChevronRight className="w-3 h-3" />
+          </button>
         </div>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.1 }}
           className="bg-card rounded-xl p-4 card-glow"
         >
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
-              <p className="text-[9px] text-muted-foreground mb-1.5 uppercase tracking-wide font-medium">
-                Niche
+              <UserCircle className="w-5 h-5 text-brand-blue mx-auto mb-1" />
+              <p className="text-[10px] text-muted-foreground">Niche</p>
+              <p className="text-xs font-semibold capitalize">
+                {profile.niche}
               </p>
-              <p className="text-xs font-bold text-brand-cyan line-clamp-2 leading-tight">
-                {profile.niche || "—"}
-              </p>
-            </div>
-            <div className="text-center border-x border-border">
-              <p className="text-[9px] text-muted-foreground mb-1.5 uppercase tracking-wide font-medium">
-                Top Content
-              </p>
-              <p className="text-xs font-bold text-purple-400">{topContent}</p>
             </div>
             <div className="text-center">
-              <p className="text-[9px] text-muted-foreground mb-1.5 uppercase tracking-wide font-medium">
-                Avg Score
-              </p>
-              <p className={`text-xs font-bold ${avgScoreColor}`}>
+              <BarChart2 className="w-5 h-5 text-brand-cyan mx-auto mb-1" />
+              <p className="text-[10px] text-muted-foreground">Top Content</p>
+              <p className="text-xs font-semibold">{topContent}</p>
+            </div>
+            <div className="text-center">
+              <Zap
+                className="w-5 h-5 mx-auto mb-1"
+                style={{ color: avgScoreColor.replace("text-", "") }}
+              />
+              <p className="text-[10px] text-muted-foreground">Avg Score</p>
+              <p className={`text-xs font-semibold ${avgScoreColor}`}>
                 {avgScore}
-                {typeof avgScore === "number" ? "/100" : ""}
               </p>
             </div>
           </div>
@@ -376,10 +397,7 @@ export default function Dashboard({
           </button>
         </div>
         {hooksLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-14 rounded-xl" />
-            <Skeleton className="h-14 rounded-xl" />
-          </div>
+          <Skeleton className="h-20 rounded-xl" />
         ) : recentHooks.length === 0 ? (
           <div
             className="bg-card rounded-xl p-4 text-center"
